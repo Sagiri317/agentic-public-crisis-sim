@@ -13,6 +13,8 @@ SCALAR_METRICS = (
     'false_review_denials', 'mean_information_coverage',
     'mean_clean_information_fraction', 'critical_review_queue_time',
     'unfinished_tasks', 'active_harms_at_horizon',
+    'monitoring_requests', 'true_detections', 'completed_reviews',
+    'review_queue_time', 'deadline_misses',
 )
 PHASES = ('release_holds', 'deliver', 'propose', 'monitor', 'finish_review',
           'finish_command', 'dispatch', 'execute', 'send', 'measure', 'advance')
@@ -172,16 +174,25 @@ class Run:
         self.phase('monitor')
         if not self.p['automatic_isolation']:
             return
-        level = self.p['observation_level']
+        offset = self.p['monitoring_offset']
         for i, agent in enumerate(self.m.agents):
-            opportunity = level == 2 or level == 1 and 0 <= self.proposed[i] < self.t or level == 0 and 0 <= self.resolved[i] < self.t
+            if offset is None:
+                level = self.p['observation_level']
+                opportunity = level == 2 or level == 1 and 0 <= self.proposed[i] < self.t or level == 0 and 0 <= self.resolved[i] < self.t
+            else:
+                opportunity = self.t == agent['release'] + offset
             if not opportunity or self.isolated(i):
                 continue
+            self.metrics['monitoring_requests'] += 1
             truth = self.compromised[i] or self.harm[i]
-            alert = self.u('detect' if truth else 'false_alarm', agent['id'], self.t) < self.p['detection_probability' if truth else 'false_alarm_probability']
+            mechanism = 'detect' if truth else 'false_alarm'
+            alert = self.u(mechanism if offset is None else mechanism + '_once',
+                           agent['id'], self.t if offset is None else 0) < self.p['detection_probability' if truth else 'false_alarm_probability']
+            self.record('monitor_request', i, true_anomaly=truth, alert=alert)
             if alert:
                 self.isolated_until[i] = self.t + self.p['recovery_delay']
                 self.metrics['false_isolations'] += int(not truth)
+                self.metrics['true_detections'] += int(truth)
                 self.record('isolate', i, true_anomaly=truth)
 
     def finish_review(self):
@@ -202,6 +213,7 @@ class Run:
                     self.metrics['false_review_denials'] += 1
                 outcome = 'approved' if accepted else 'false_denial'
             self.review_done[i] = True
+            self.metrics['completed_reviews'] += 1
             self.review_requests[i].update(completed_at=self.t, truth=truth, outcome=outcome)
             self.record('review_complete', i, truth=truth, outcome=outcome)
 
@@ -320,6 +332,7 @@ class Run:
             if self.m.required[i] and i not in self.coverage_records and (self.resolved[i] >= 0 or self.t >= min(self.deadline[i], self.p['horizon'] - 1)):
                 self.coverage_records[i] = self.obs[i], self.clean_coverage[i]
         self.metrics['critical_review_queue_time'] += sum(self.m.life_tier[i] for i in self.review_queue)
+        self.metrics['review_queue_time'] += len(self.review_queue)
         scores = [sum(utilities[i] * w for i, w in weights) for weights in self.m.function_weights]
         self.metrics['function_failure_time'] += sum(c * (score < self.f['function_failure_threshold']) for score, c in zip(scores, self.m.function_criticality))
         if self.trace:
@@ -358,6 +371,9 @@ class Run:
         self.metrics['ever_compromised_count'] = sum(self.ever)
         self.metrics['unfinished_tasks'] = sum(t < 0 for t in self.resolved)
         self.metrics['active_harms_at_horizon'] = sum(self.harm)
+        self.metrics['deadline_misses'] = sum(
+            resolved > due or resolved < 0 and self.p['horizon'] - 1 > due
+            for resolved, due in zip(self.resolved, self.deadline))
         count = len(self.coverage_records)
         self.metrics['mean_information_coverage'] = sum(x[0] for x in self.coverage_records.values()) / count if count else None
         self.metrics['mean_clean_information_fraction'] = sum(x[1] for x in self.coverage_records.values()) / count if count else None

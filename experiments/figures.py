@@ -19,6 +19,7 @@ TITLES = (
     '03_position_prediction', '04_dependency_partition',
     '05_observation_and_isolation', '06_review_and_command',
     '07_task_triage', '08_information_and_deadlines',
+    '09_fixed_budget_monitoring', '10_oversight_capacity',
 )
 
 
@@ -35,7 +36,7 @@ def chinese_font():
     raise RuntimeError('No Chinese font available')
 
 
-# One visual vocabulary for all eight figures; colors never select observations.
+# One visual vocabulary for all figures; colors never select observations.
 PALETTE = dict(black='#000000', orange='#E69F00', sky='#56B4E9', green='#009E73',
                yellow='#F0E442', blue='#0072B2', vermillion='#D55E00', purple='#CC79A7',
                gray='#4D4D4D', mid='#9E9E9E', light='#D9D9D9')
@@ -268,7 +269,7 @@ def _position(frames, base, subtitle):
     ax = fig.add_subplot(gs[0]); _panel(ax, 'a', '交叉拟合增量 R²')
     _forest(ax, frames['position'], ['主映射', '成员等权', 'Agent重要性加权'], ['blue', 'gray', 'gray'])
     ax.set_xlabel('ΔR²（无量纲）')
-    ax = fig.add_subplot(gs[1]); _panel(ax, 'b', '预登记支持层：位置均值')
+    ax = fig.add_subplot(gs[1]); _panel(ax, 'b', '预先规定支持层：位置均值')
     supported = frames['position_example']
     if supported.empty:
         ax.text(.5, .5, '无满足预定支持量的同规模示例', ha='center', transform=ax.transAxes)
@@ -293,12 +294,12 @@ def _dependency(frames, base, subtitle):
         labels = ['基准' if p == '0' else 'Partition '+p for p in _conditions(frame)['partition']]
         _forest(ax, frame, labels)
         ax.set_xlabel(unit+'（功能关键性 × tick）')
-    _note(fig, '固定 data 情景及五个预登记分组；额外 partition 的 K2 均对照基准 K1。\nES95 差是各分布尾部均值之差，不是差值分布的尾部；不外推到全部依赖结构。', ci=True)
+    _note(fig, '固定 data 情景及五个预先规定分组；额外 partition 的 K2 均对照基准 K1。\nES95 差是各分布尾部均值之差，不是差值分布的尾部；不外推到全部依赖结构。', ci=True)
     return fig
 
 
 def _isolation(frames, base, subtitle):
-    fig = _figure(5.75, '更早监测增强隔离减损，但隔离仍伴随阻塞与误隔离', subtitle+' · 隔离开启 − 关闭')
+    fig = _figure(5.75, '前移持续监测窗口增强隔离减损，也改变累计检查机会', subtitle+' · 隔离开启 − 关闭')
     gs = fig.add_gridspec(2, 2, left=.10, right=.945, bottom=.18, top=.79, wspace=.45, hspace=.70)
     titles = ('服务缺口效果', '业务阻塞', '误隔离次数')
     units = ('ΔL（功能关键性 × tick）', 'Δ Agent-tick', 'Δ 误隔离次数')
@@ -318,7 +319,7 @@ def _isolation(frames, base, subtitle):
     cb = fig.colorbar(im, ax=ax, fraction=.05, pad=.035); cb.ax.tick_params(labelsize=7, length=2)
     cb.set_label('功能缺口差（tick）', fontsize=7)
     _legend(fig, [_handle(label, color, marker, style) for _, label, color, marker, style in PROFILES], .89, 2)
-    _note(fig, 'O0：交付/行动后；O1：方案形成后；O2：内部遥测。阻塞与误隔离为伴随成本，不据此断言其随 O 单调增加。\n热图以 0 为中心；F1–F7 对应态势、交通、疏散、救援、医疗、预警、生命线。点横向微移仅为避让。', ci=True)
+    _note(fig, 'O0：交付/行动后；O1：方案形成后；O2：内部遥测。这是持续监测政策效果，包含累计检测/误报机会变化。\n合成情景、抽象 tick；不解释为等预算的纯时点效应。F1–F7 为功能缺口；点横向微移仅为避让。', ci=True)
     return fig
 
 
@@ -340,7 +341,7 @@ def _review(frames, base, subtitle):
             rows = data[data['comparison'].eq(command+' − distributed')]
             _line(ax, rows, rows['d'].astype(int), color, marker, style, (k-.5)*.12)
         ax.set_xticks([2, 5, 10]); ax.set_xlabel('到期宽度 d'); ax.set_ylabel(unit)
-    ax = fig.add_subplot(gs[1, 1]); _panel(ax, 'd', '叠加人工审核：预登记敏感性')
+    ax = fig.add_subplot(gs[1, 1]); _panel(ax, 'd', '叠加人工审核：预先规定敏感性')
     _forest(ax, frames['command_with_human'], ['选择性复核', '全面指挥复核'], ['blue', 'purple'])
     ax.set_xlabel('ΔL（相对分布式指挥）')
     _legend(fig, [_handle(label+' − 分布式', color, marker, style) for _, label, color, marker, style in COMMANDS], .89, 2)
@@ -444,6 +445,81 @@ def _information(frames, base, subtitle):
     return fig
 
 
+def _monitoring_conclusion(frames):
+    directions = dict(frames['fixed_budget'])['service_deficit']['direction']
+    if directions.eq('positive').all():
+        return '固定检查次数后，较晚监测增加平均功能缺口'
+    if directions.eq('negative').all():
+        return '固定检查次数后，较晚监测减少平均功能缺口'
+    if directions.eq('uncertain').all():
+        return '固定检查次数后，时点差异仍不确定'
+    return '固定检查次数后，时点效果随比较而异'
+
+
+def _capacity_conclusion(frames):
+    directions = dict(frames['oversight_capacity'])['service_deficit']['direction']
+    if directions.eq('positive').any() and directions.eq('negative').any():
+        return '审核容量曲线中同时出现净损害与净收益'
+    if directions.eq('positive').all():
+        return '各档审核容量均增加净损失，增容未消除全部成本'
+    if directions.eq('negative').all():
+        return '各档审核容量均减少净损失，排队负担仍需披露'
+    return '审核容量改变排队约束，净效果存在不确定性'
+
+
+def _function_effects(ax, pairs, labels):
+    rows = [(metric, frame) for metric, frame in pairs if metric in {f'F{i}' for i in range(1, 8)}]
+    values = np.column_stack([frame['value'] for _, frame in rows])
+    intervals = np.stack([frame[['ci_low', 'ci_high']].to_numpy() for _, frame in rows], axis=1)
+    statuses = np.column_stack([frame['status'] for _, frame in rows])
+    return _heatmap(ax, values, labels, [metric for metric, _ in rows], intervals=intervals, statuses=statuses)
+
+
+def _fixed_budget(frames, base, subtitle):
+    fig = _figure(5.6, _monitoring_conclusion(frames), subtitle+' · 单次主动检查 · data中心情景')
+    gs = fig.add_gridspec(2, 1, left=.22, right=.90, bottom=.22, top=.81, hspace=.78)
+    labels = ['middle − early', 'late − early', 'late − middle']
+    ax = fig.add_subplot(gs[0]); _panel(ax, 'a', '检测质量相同，比较检查时点')
+    _forest(ax, dict(frames['fixed_budget'])['service_deficit'], labels)
+    ax.set_xlabel('均值 ΔL（功能关键性 × 抽象 tick）')
+    ax = fig.add_subplot(gs[1]); _panel(ax, 'b', '七功能方向：正值表示功能缺口增加')
+    im = _function_effects(ax, frames['fixed_budget'], labels)
+    cb = fig.colorbar(im, ax=ax, fraction=.025, pad=.04)
+    cb.set_label('ΔL_f（抽象 tick）', fontsize=7)
+    counts = ', '.join(f'{name}: {row.monitoring_requests:g}' for name, row in
+                       zip(('early', 'middle', 'late'), frames['monitoring_levels'].itertuples()))
+    _note(fig, '合成情景；时点分别为 release+1、+3、+5；每节点至多一次，超出窗口不补查。\n'
+          f'实际每 run 平均检查请求数：{counts}。O0/O1/O2 持续监测另见图5。\n'
+          '功能分量使用归一化服务缺口；总 L 使用功能关键性权重。', ci=True)
+    return fig
+
+
+def _capacity(frames, base, subtitle):
+    fig = _figure(7.8, _capacity_conclusion(frames), subtitle+' · human − autonomy · A04中心情景')
+    gs = fig.add_gridspec(3, 2, left=.12, right=.94, bottom=.19, top=.85,
+                         hspace=.72, wspace=.56, height_ratios=[1, 1.45, 1])
+    levels = frames['capacity_levels']
+    labels = levels['condition'].astype(str).tolist()
+    xx = np.arange(len(labels))
+    ax = fig.add_subplot(gs[0, :]); _panel(ax, 'a', '相对匹配自主参照的净功能缺口')
+    _line(ax, dict(frames['oversight_capacity'])['service_deficit'], xx, 'blue', 'o')
+    ax.set_xticks(xx, labels); ax.set_ylabel('均值 ΔL\n（功能关键性 × tick）')
+    ax = fig.add_subplot(gs[1, :]); _panel(ax, 'b', 'F1–F7：保留容量配置中的功能取舍')
+    im = _function_effects(ax, frames['oversight_capacity'], labels)
+    ax.set_ylabel('审核容量')
+    cb = fig.colorbar(im, ax=ax, fraction=.018, pad=.025)
+    cb.set_label('ΔL_f（tick）', fontsize=7)
+    for j, (metric, title, unit) in enumerate((('review_queue_time', '普通排队时间', 'Agent-tick'),
+                                            ('completed_reviews', '窗口内完成的审核', '次数'))):
+        ax = fig.add_subplot(gs[2, j]); _panel(ax, chr(99+j), title+'（水平）')
+        ax.plot(xx, levels[metric], color=PALETTE['blue'], marker='o', ms=3.5, lw=.9)
+        ax.set_xticks(xx, labels, rotation=35, ha='right'); ax.set_ylabel(unit); ax.set_ylim(bottom=0)
+    _note(fig, '合成情景、抽象 tick；full/all/life_safety，deadline=5，service_time=3；其他条件与 autonomy 相同。\n'
+          '各横轴按预定离散档位等距展示；连线不估计连续临界点。unlimited 仅取消容量排队，仍有服务时长。\n'
+          'c、d 为均值水平、无 CI；监督拥塞是模型机制，不是现实经验定律。以下符号说明适用于 a、b。', ci=True)
+    return fig
+
+
 def render(frames, output, stage, base):
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
@@ -459,14 +535,15 @@ def render(frames, output, stage, base):
     }
     with plt.rc_context(styles):
         for name, renderer in zip(TITLES, (_overview, _architecture, _position, _dependency,
-                                          _isolation, _review, _triage, _information)):
+                                          _isolation, _review, _triage, _information, _fixed_budget, _capacity)):
             fig = renderer(frames, base, subtitle)
             if stage != 'formal' and renderer not in (_overview, _architecture):
                 # Formal takeaways do not become claims about a different sample.
                 fig.texts[0].set_text({
-                    _position: '位置与同规模公共功能损失', _dependency: '共同依赖：均值与尾部的预登记比较',
+                    _position: '位置与同规模公共功能损失', _dependency: '共同依赖：均值与尾部的预先规定比较',
                     _isolation: '观察阶段与隔离：效果及治理负担', _review: '审核与指挥：处理能力和时限',
                     _triage: '任务分诊：总量与功能分解', _information: '信息政策：直接效果与期限交互',
+                    _fixed_budget: '固定预算监测：三个时点的配对比较', _capacity: '审核容量：配对效果与监督拥塞诊断',
                 }[renderer])
             fig.savefig(output / (name+'.png'), dpi=300)
             plt.close(fig)
@@ -479,13 +556,16 @@ def write_report(frames, output, runs_per_cell, repetitions, stage):
         f'每个去重配置运行 {runs_per_cell} 次；共 {frames["config_count"]} 个配置；{repetitions} 次诊断重抽样。',
         f'本报告记录 {stage.capitalize()} 的模拟结果与数值诊断，不作政策方向验收。',
         '理论与情景有效性依据设计文件；实现验证与极端条件由测试验证；尚无现实经验校准。',
+        '30个Agent、79条边和七项功能是机制研究用的合成网络，不是郑州真实政府组织结构复刻；模拟频率不是现实发生概率。',
         '主量、七项功能分解和评价敏感性全部见 tables/effects.csv；诊断量不合成为福利分数。',
         '位置的全部已观察支持层见 tables/position_strata.csv；点和区间分别保留 defined / undefined。',
-        '95% bootstrap CI 为固定合成模型与预登记抽样规则下的 pointwise 模拟区间，不表示模型结构、参数或现实政策效果的不确定性已被识别。',
+        '95% bootstrap CI 为固定合成模型与预先规定抽样规则下的 pointwise 模拟区间，不表示模型结构、参数或现实政策效果的不确定性已被识别。',
         'level 行中的 `not_computed` 表示未计算置信区间，而不是没有点估计或模拟失败。',
         '限制：一次响应任务、单一业务拓扑、简化补充检查、健康指挥零误拒绝、线性服务映射。',
         '主结果的效应、零结果、反向和不确定均保留；未依据结果调整参数、随机种子或切片。', '',
     ]
+    lines.extend([_monitoring_conclusion(frames) + '；' + _capacity_conclusion(frames) + '。',
+        '这两项补充仍分别属于RQ2与RQ3；其结果不升级为新增研究问题或替换原有主比较。', ''])
 
     def ci_text(row):
         return f'[{row.ci_low:.8g}, {row.ci_high:.8g}]' if np.isfinite([row.ci_low, row.ci_high]).all() else 'undefined'
@@ -502,4 +582,81 @@ def write_report(frames, output, runs_per_cell, repetitions, stage):
             metric = r.metric + ('（总 L 尾部贡献）' if r.tail_component else '')
             lines.append(f'| {r.label} | {r.statistic} | {r.view} | {metric} / {_metric_unit(r.metric)} | {r.value:.8g} | {ci_text(r)} | {r.direction} | {r.status} | {r.status} | {r.estimand_id[:12]} |')
         lines.append('')
+
+    def effect_table(pairs):
+        lines.extend(['| 比较 | 指标 / 单位 | 数值 | 95% CI | direction | 追溯 ID |',
+                      '|---|---|---:|---|---|---|'])
+        for metric, frame in pairs:
+            for r in frame.itertuples():
+                label = r.label.replace('\n', ' / ')
+                title = metric + ('（总L尾部贡献）' if r.tail_component else '')
+                lines.append(f'| {label} | {title} / {_metric_unit(metric)} | {r.value:.8g} | {ci_text(r)} | {r.direction} | {r.estimand_id[:12]} |')
+        lines.append('')
+
+    def level_table(frame, metrics):
+        lines.extend(['| 条件 | ' + ' | '.join(metrics) + ' | cell ID |',
+                      '|---|' + '---:|' * len(metrics) + '---|'])
+        for _, row in frame.iterrows():
+            values = ' | '.join(f'{row[metric]:.8g}' for metric in metrics)
+            lines.append(f'| {row["condition"]} | {values} | {row["cell_id"][:12]} |')
+        lines.append('')
+
+    settings = frames['settings']
+    lines.extend(['## RQ2补充：检测次数受控时的监测时点', '',
+        '原O0/O1/O2比较的是前移持续监测窗口的整体政策效果，前移还改变累计检查及误报机会，不能单独识别等预算的纯时点作用。',
+        f'本补充固定中心data同期冲击、自动隔离开启；检测概率={settings["detection_probability"]:g}、误报率={settings["false_alarm_probability"]:g}，三组相同。',
+        'early、middle、late分别在节点release+1、+3、+5主动检查一次，不要求先形成方案或完成行动。超出horizon不补查、不移至窗口末。',
+        '三组使用同一节点、同一run的潜在一次检测/误报随机数。状态随检查时点变化，因此共享随机数不意味着真检测数相同。',
+        '预先规定middle−early、late−early、late−middle；均值ΔL为本补充的主要输出，ES95及功能尾部贡献为次级。单位均为抽象tick下的合成服务缺口。', '',
+        '三组水平（condition为release后的tick数；计数为每run均值；level不计算CI）：', ''])
+    level_table(frames['monitoring_levels'], ['service_deficit', 'worst_function_deficit', 'monitoring_requests',
+        'true_detections', 'false_isolations', 'ever_compromised_count', 'wrong_actions'])
+    lines.extend(['均值差：正值表示对应缺口或计数增加；七项功能缺口乘其主关键性权重后重建ΔL。', ''])
+    effect_table(frames['fixed_budget'])
+    lines.extend(['次级ES95：各分布尾部均值之差；功能项使用各cell总L同一尾部，不是各功能自己的ES95。', ''])
+    effect_table(frames['fixed_budget_tail'])
+    lines.extend(['![固定预算监测](figures/09_fixed_budget_monitoring.png)', '',
+        '允许解释为本固定检测预算下的时点效应；不能等同于持续监测政策，更不是现实检测或隔离政策的因果估计。', '',
+        '## RQ3补充：审核容量与监督拥塞', '',
+        f'固定A04、无资源冲击、full/all/life_safety、deadline_window=5、review_service_time=3，审核灵敏度={settings["review_sensitivity"]:g}、特异度={settings["review_specificity"]:g}；其他条件取中心值，指挥为distributed。',
+        '全部容量使用同一外生情景的autonomy参照和run-index配对；共享参照只保留一个物理配置。unlimited仅消除容量排队，仍需完整服务时长。',
+        '“监督拥塞”指响应窗口内监督需求超过处理能力，审核可能减少错误行动，却通过排队和延期造成新的公共功能损失。这是模型提出的机制性概念，尚未经现实经验验证。', ''])
+    capacity = dict(frames['oversight_capacity'])['service_deficit']
+    caps = frames['capacity_levels']['condition'].astype(str).tolist()
+    for sign, title in (('positive', '净损害（CI全正）'), ('negative', '净收益（CI全负）'), ('uncertain', '净效果不确定（CI含0）')):
+        labels = [cap for cap, row in zip(caps, capacity.itertuples()) if row.direction == sign]
+        lines.append(f'{title}的离散容量：' + ('、'.join(labels) if labels else '未出现') + '。')
+    if not capacity['direction'].isin(['positive', 'negative', 'uncertain']).all():
+        lines.append('另有未定义或结构性零结果，按表中状态保留，不补值。')
+    monotone = np.all(np.diff(capacity['value']) <= 0)
+    lines.extend(['该网格的ΔL点估计' + ('随容量非增' if monotone else '没有呈现随容量非增的单调关系') + '；这不是连续容量定律。',
+        '下表相邻变化仅为点估计描述，不附加新的显著性检验；正的下降量表示增容后L降低。用于检查过载、过渡和边际收益减弱，不强行命名临界点。', '',
+        '| 容量区间 | ΔL下降量（前档−后档） |', '|---|---:|'])
+    for i in range(1, len(caps)):
+        lines.append(f'| {caps[i-1]} → {caps[i]} | {capacity["value"].iloc[i-1] - capacity["value"].iloc[i]:.8g} |')
+    lines.extend(['', '审核/排队水平：完成只计t<horizon的决定；普通队列为Agent-tick，加权队列为分层权重×Agent-tick。', ''])
+    levels = pd.concat([frames['capacity_reference'], frames['capacity_levels']], ignore_index=True)
+    level_table(levels, ['human_review_load', 'completed_reviews', 'review_queue_time', 'critical_review_queue_time',
+                         'unfinished_tasks', 'deadline_misses', 'false_review_denials', 'wrong_actions'])
+    lines.extend(['互斥阻塞分解水平（Agent-tick）：这些是记账归因，不是独立可加的政策因果贡献。', ''])
+    level_table(levels, ['information_blocking', 'review_blocking', 'denial_blocking', 'command_blocking', 'isolation_blocking'])
+    lines.extend(['全部human−autonomy差及七功能方向：', ''])
+    effect_table(frames['oversight_capacity'])
+    lines.extend(['![审核容量曲线](figures/10_oversight_capacity.png)', '',
+        '如出现净损害与净收益，仅在已计算的离散容量间定位变化；CI含0的容量保留不确定，不插值推断现实编制或精确阈值。人工监督既非必然有益，也非必然有害。', '',
+        '## 非补偿性风险与完整功能向量', '',
+        '`worst_function_deficit`先在每run取max(F1,…,F7)，再求均值及配对差，单位为归一化服务缺口×抽象tick。它不乘功能关键性，也不等于max(E[F1],…,E[F7])。',
+        '该次级结果来自与L相同的raw积分，未增加模拟或改变评分；不能替换主L。fixed-budget与capacity的该指标及功能方向已列于上表。',
+        '以下保留所有规定的共同依赖/partition及分诊对比；表格单元格为点估计 [95% CI]。F1–F7为功能缺口差，最后一列为最大单项缺口差。',
+        'life_safety的总L改善只表示预定价值权重下的改善；须同时看F1/F2等基础信息和非生命安全功能是否被挤压，不能称为普遍最优治理。', ''])
+    for purpose, pairs in frames['function_vectors'].items():
+        lines.extend(['### ' + ('共同依赖及partition' if purpose == 'dependency' else 'life_safety / due_first 相对FIFO'), '',
+            '| 比较 | ' + ' | '.join(metric for metric, _ in pairs) + ' |',
+            '|---|' + '---|' * len(pairs)])
+        for i, label in enumerate(pairs[0][1]['label']):
+            entries = [f'{frame.iloc[i]["value"]:.8g} {ci_text(frame.iloc[i])}' for _, frame in pairs]
+            lines.append('| ' + label.replace('\n', ' / ') + ' | ' + ' | '.join(entries) + ' |')
+        lines.append('')
+    lines.extend(['本研究未验证4R/TIL等课程框架；位置ΔR²是合成场景中的预测增量，不是现实因果效应。',
+        '复现信息和产物哈希见run-info.json；报告数值来自三张CSV，同一生成路径适用于Smoke、Pilot和Formal。', ''])
     (output / 'report.md').write_text('\n'.join(lines) + '\n', encoding='utf-8', newline='\n')

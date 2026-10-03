@@ -9,6 +9,7 @@ parameters:
   verification_mode: none
   verification_effectiveness: 0.5
   observation_level: 0
+  monitoring_offset: null
   detection_probability: 0.5
   false_alarm_probability: 0.005
   automatic_isolation: false

@@ -1,6 +1,11 @@
 """Run the protocol's Smoke, Pilot or Formal through one research pipeline."""
 import argparse
+from datetime import datetime, timezone
+import hashlib
+from importlib.metadata import version
+import json
 from pathlib import Path
+import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,6 +24,11 @@ def temporary_output(path):
     return path
 
 
+def source_hashes():
+    paths = subprocess.check_output(['git', 'ls-files'], cwd=ROOT, text=True).splitlines()
+    return {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in paths}
+
+
 def pipeline(stage, output, workers):
     output = temporary_output(output)
     study.validate_python()
@@ -29,12 +39,27 @@ def pipeline(stage, output, workers):
     sampling = spec['sampling']
     runs, master = sampling[stage + '_runs'], sampling['seeds'][stage]
     repetitions = sampling['smoke_bootstrap'] if stage == 'smoke' else sampling['bootstrap_repetitions']
+    output.mkdir(parents=True, exist_ok=True)
+    provenance = dict(stage=stage, status='running', started_utc=datetime.now(timezone.utc).isoformat(),
+        git_head=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
+        source_hashes=source_hashes(), design_hash=study.object_hash(design),
+        python=sys.version, dependencies={name: version(name) for name in ('numpy', 'pandas', 'matplotlib', 'PyYAML')},
+        sampling=sampling, runs_per_cell=runs, master_seed=master, bootstrap_repetitions=repetitions,
+        configurations=len(models), workers=workers)
+    info = output / 'run-info.json'
+    info.write_text(json.dumps(provenance, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     study.execute(output, runs, master, workers, models)
     raws = {cell_id: study.load_raw(output / 'raw' / (cell_id + '.npz')) for cell_id in models}
     tables = analyze.analyze(raws, output, repetitions, design, base)
     frames = analyze._presentation(tables, design, base, spec)
     figures.render(frames, output / 'figures', stage, base)
     figures.write_report(frames, output, runs, repetitions, stage)
+    if source_hashes() != provenance['source_hashes']:
+        raise ValueError('Sources changed during the run; retain outputs and rerun the affected stage')
+    provenance.update(status='complete', completed_utc=datetime.now(timezone.utc).isoformat(),
+        artifact_hashes={path.relative_to(output).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+                         for path in sorted(output.rglob('*')) if path.is_file() and path != info})
+    info.write_text(json.dumps(provenance, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     print(f'{stage.capitalize()} complete: {len(models)} configurations × {runs} runs, '
           f'{repetitions} bootstrap repetitions; {output}', flush=True)
 

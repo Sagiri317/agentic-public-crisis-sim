@@ -20,8 +20,8 @@ from agent_crisis_sim.simulation import keyed_uniform, simulate, VECTOR_METRICS,
 
 def test_exact_protocol_expansion_semantic_dedup_and_primary_terms():
     c = study.build_catalog()
-    assert [len(c[key]) for key in ('cells', 'roles', 'contrasts', 'estimands')] == [248, 300, 299, 15323]
-    assert {rq: sum(r['rq'] == rq for r in c['roles']) for rq in ('RQ1', 'RQ2', 'RQ3')} == dict(RQ1=114, RQ2=49, RQ3=137)
+    assert [len(c[key]) for key in ('cells', 'roles', 'contrasts', 'estimands')] == [255, 310, 306, 19260]
+    assert {rq: sum(r['rq'] == rq for r in c['roles']) for rq in ('RQ1', 'RQ2', 'RQ3')} == dict(RQ1=114, RQ2=52, RQ3=144)
     assert len({cell['id'] for cell in c['cells']}) == len(c['cells'])
     assert {r['rq'] for r in c['roles']} == {'RQ1', 'RQ2', 'RQ3'}
     assert len([r for r in c['roles'] if r['family'] == 'position']) == 30
@@ -46,7 +46,7 @@ def test_no_inactive_parameters_in_materialized_configs():
         if p['verification_mode'] == 'none':
             assert 'verification_effectiveness' not in p
         if not p['automatic_isolation']:
-            assert not {'observation_level', 'detection_probability', 'false_alarm_probability'} & set(p)
+            assert not {'observation_level', 'monitoring_offset', 'detection_probability', 'false_alarm_probability'} & set(p)
 
 
 def test_every_active_behavior_field_is_read_and_no_control_uses_config_identity():
@@ -293,7 +293,7 @@ def test_keyed_CRN_is_treatment_independent_even_after_unused_calls():
 
 
 def test_fixed_figure_coverage():
-    assert len(figures.TITLES) == 8
+    assert len(figures.TITLES) == 10
     font = figures.chinese_font()
     assert 'last resort' not in font.lower()
     path = figures.font_manager.findfont(font, fallback_to_default=False)
@@ -359,6 +359,8 @@ def test_ci_display_preserves_points_and_interval_states(value, low, high, statu
 def test_cli_stage_sampling_without_running_simulations(stage, runs, seed, repetitions, monkeypatch, tmp_path):
     calls = []
     monkeypatch.setattr(run_all, 'ROOT', tmp_path)
+    monkeypatch.setattr(run_all, 'source_hashes', lambda: {})
+    monkeypatch.setattr(run_all.subprocess, 'check_output', lambda *args, **kwargs: 'test-head')
     monkeypatch.setattr(study, 'build_catalog', lambda spec, base: dict(cells=[]))
     monkeypatch.setattr(study, 'execute', lambda output, n, master, workers, models: calls.append((n, master)))
     monkeypatch.setattr(analyze, 'analyze', lambda raws, output, b, design, base: calls.append(b))
@@ -368,6 +370,9 @@ def test_cli_stage_sampling_without_running_simulations(stage, runs, seed, repet
     monkeypatch.setattr(sys, 'argv', ['run_all.py', '--' + stage])
     run_all.main()
     assert calls == [(runs, seed), repetitions]
+    import json
+    info = json.loads((tmp_path / '.run' / stage / 'run-info.json').read_text(encoding='utf-8'))
+    assert info['status'] == 'complete' and info['master_seed'] == seed
 
 
 def test_position_point_remains_defined_when_one_bootstrap_has_zero_SST(monkeypatch):
@@ -449,9 +454,9 @@ def test_only_consumed_bootstraps_are_computed_and_all_rows_remain(monkeypatch, 
     monkeypatch.setattr(analyze, '_mean_contrast', record_mean)
     tables = analyze.analyze(raws, tmp_path / 'all', repetitions, design, base)
     effects = tables['effects']
-    assert len(effects) == 15323 and effects['estimand_id'].is_unique
+    assert len(effects) == 19260 and effects['estimand_id'].is_unique
     assert set(effects['estimand_id']) == {e['id'] for e in design['estimands']}
-    assert effects['status'].eq('not_computed').sum() == 8680
+    assert effects['status'].eq('not_computed').sum() == 10455
     assert len(mean_calls) == (effects['status'].eq('defined') & effects['statistic'].eq('mean')).sum()
     _, bootstrap = analyze._statistic_plan(design)
     assert sorted(tail_calls) == sorted(len(metrics) for groups in bootstrap.values() for metrics in groups.values())
@@ -463,7 +468,7 @@ def test_only_consumed_bootstraps_are_computed_and_all_rows_remain(monkeypatch, 
     level_tables = analyze.analyze(raws, tmp_path / 'levels', repetitions, level_only, base)
     levels = level_tables['effects']
     assert not tail_calls and not mean_calls
-    assert len(levels) == 8680 and levels['status'].eq('not_computed').all()
+    assert len(levels) == 10455 and levels['status'].eq('not_computed').all()
     pd.testing.assert_frame_equal(levels.reset_index(drop=True), effects[effects['estimand_type'].eq('level')].reset_index(drop=True))
 
 
@@ -501,6 +506,13 @@ def test_presentation_is_natural_unique_and_independent_of_outcomes(tmp_path):
     for (left_id, left), (right_id, right) in zip(frames['isolation_functions'], alternate['isolation_functions']):
         assert left_id == right_id
         pd.testing.assert_frame_equal(left[['estimand_id', 'label']], right[['estimand_id', 'label']])
+    for key in ('fixed_budget', 'fixed_budget_tail', 'oversight_capacity'):
+        for (left_id, left), (right_id, right) in zip(frames[key], alternate[key]):
+            assert left_id == right_id
+            pd.testing.assert_frame_equal(left[['estimand_id', 'label']], right[['estimand_id', 'label']])
+    assert frames['monitoring_levels']['condition'].tolist() == [1, 3, 5]
+    assert frames['capacity_levels']['condition'].tolist() == [1, 2, 3, 4, 6, 10, 'unlimited']
+    assert dict(frames['fixed_budget'])[analyze.LOSS]['label'].tolist() == ['\n3 − 1', '\n5 − 1', '\n5 − 3']
     for key, axis in (('triage_lines', 'deadline'), ('triage_functions', 'label')):
         for (left_id, left), (right_id, right) in zip(frames[key], alternate[key]):
             assert left_id == right_id
@@ -532,7 +544,13 @@ def test_presentation_is_natural_unique_and_independent_of_outcomes(tmp_path):
     assert '`not_computed` 表示未计算置信区间，而不是没有点估计或模拟失败' in report
     for stage in ('pilot', 'formal'):
         figures.write_report(frames, tmp_path, 8, 20, stage)
-        assert (tmp_path / 'report.md').read_text(encoding='utf-8').startswith(f'# 合成情景 {stage.capitalize()} ')
+        report = (tmp_path / 'report.md').read_text(encoding='utf-8')
+        assert report.startswith(f'# 合成情景 {stage.capitalize()} ')
+        for term in ('累计检查', 'middle−early', '监督拥塞', 'worst_function_deficit', 'F1/F2', 'unlimited'):
+            assert term in report
+        for key in ('fixed_budget', 'fixed_budget_tail', 'oversight_capacity'):
+            for _, rows in frames[key]:
+                assert all(identity[:12] in report for identity in rows['estimand_id'])
 
 
 def test_verification_quality_registers_only_quality_slices():
@@ -552,3 +570,106 @@ def test_protocol_boundary_rejects_invalid_specification(case, monkeypatch):
     monkeypatch.setattr(study.yaml, 'load', lambda *args, **kwargs: spec)
     with pytest.raises(ValueError):
         study.protocol()
+
+
+def test_supplement_catalog_preserves_old_cells_and_matching_exogenous_conditions():
+    spec, base = study.protocol(), study.base_config()
+    design = study.build_catalog(spec, base)
+    old_spec = deepcopy(spec)
+    old_spec['families'] = [f for f in spec['families'] if f['id'] not in {'fixed_budget', 'oversight_capacity'}]
+    old_cells = {c['id'] for c in study.build_catalog(old_spec, base)['cells']}
+    cells = {c['id']: c for c in design['cells']}
+    assert len(old_cells) == 248 and len(cells.keys() - old_cells) == 7
+    assert old_cells <= cells.keys()
+    budget = sorted((r for r in design['roles'] if r['family'] == 'fixed_budget'), key=lambda r: r['axes']['monitoring_offset'])
+    assert [r['axes']['monitoring_offset'] for r in budget] == [1, 3, 5]
+    parameters = []
+    for role in budget:
+        p = cells[role['cell_id']]['parameters'].copy()
+        assert p.pop('monitoring_offset') == role['axes']['monitoring_offset']
+        assert p['automatic_isolation'] and 'observation_level' not in p
+        assert p['initial_nodes'] == [] and p['shock_type'] == 'data' and p['shock_profile'] == 'abrupt'
+        assert (p['detection_probability'], p['false_alarm_probability']) == (.5, .005)
+        parameters.append(p)
+    assert parameters[0] == parameters[1] == parameters[2]
+    capacity = [r for r in design['roles'] if r['family'] == 'oversight_capacity']
+    assert {r['axes']['review_capacity'] for r in capacity} == {1, 2, 3, 4, 6, 10, 'unlimited'}
+    consumer_cells, references, comparisons = set(), set(), set()
+    for contrast in design['contrasts']:
+        for role in contrast['roles'].values():
+            if role['purpose'] not in {'fixed_budget', 'oversight_capacity'}:
+                continue
+            assert contrast['terms'] == study.normalize_terms(contrast['terms'], cells)
+            consumer_cells.update(cell for cell, _ in contrast['terms'])
+            target = next(cell for cell, coef in contrast['terms'] if coef == 1)
+            reference = next(cell for cell, coef in contrast['terms'] if coef == -1)
+            if role['purpose'] == 'fixed_budget':
+                comparisons.add((cells[target]['parameters']['monitoring_offset'], cells[reference]['parameters']['monitoring_offset']))
+            else:
+                references.add(reference)
+                model = study.configuration(cells[target], base)
+                p = model.config['parameters']
+                assert (p['initial_nodes'], p['shock_type'], p['command_structure']) == (['A04'], 'none', 'distributed')
+                assert (p['review_scope'], p['review_priority'], p['review_service_time'], p['deadline_window']) == ('all', 'life_safety', 3, 5)
+                model.config['parameters']['oversight'] = 'autonomy'
+                assert compile_config(model.config).digest == reference
+    assert comparisons == {(3, 1), (5, 1), (5, 3)} and len(references) == 1
+    assert cells.keys() - old_cells <= consumer_cells
+
+
+def test_supplement_metrics_paired_bootstrap_and_function_decomposition_without_simulation(monkeypatch, tmp_path):
+    design, base = study.build_catalog(), study.base_config()
+    contrasts = {c['id']: c for c in design['contrasts']}
+    selected = {c['id'] for c in design['contrasts'] if any(
+        r['purpose'] in {'fixed_budget', 'oversight_capacity', 'triage', 'dependency'} for r in c['roles'].values())}
+    metrics = {analyze.LOSS, 'worst_function_deficit', *(f['id'] for f in base['functions'])}
+    design['estimands'] = [e for e in design['estimands'] if e.get('contrast_id') in selected and e['view'] == 'primary' and e['metric'] in metrics]
+    n, repetitions = 6, 13
+    rng = np.random.default_rng(101)
+    raws = {}
+    independent = {}
+    ids = [a['id'] for a in sorted(base['agents'], key=lambda a: a['id'])]
+    criticality = np.array([f['criticality'] for f in base['functions']])
+    for cell in design['cells']:
+        raw = {key: rng.uniform(0, 5, (n, 30)) for key in VECTOR_METRICS}
+        raw.update({key: np.zeros(n) for key in SCALAR_METRICS})
+        raw['run_index'] = np.arange(n)
+        raws[cell['id']] = raw
+        deficits = raw['base_deficit_hard'] + .5 * raw['compromised_weight_hard']
+        functions = np.column_stack([sum(deficits[:, ids.index(agent)] * w for agent, w in f['members'].items()) / sum(f['members'].values()) for f in base['functions']])
+        independent[cell['id']] = dict(service_deficit=functions @ criticality, worst_function_deficit=functions.max(axis=1),
+                                      **{f['id']: functions[:, j] for j, f in enumerate(base['functions'])})
+    assert not np.isclose(independent[design['cells'][0]['id']]['worst_function_deficit'].mean(),
+                          max(independent[design['cells'][0]['id']][f['id']].mean() for f in base['functions']))
+
+    def forbidden(*args, **kwargs):
+        pytest.fail('Evaluation and reporting must not simulate')
+
+    monkeypatch.setattr(study, 'execute', forbidden)
+    monkeypatch.setattr(study, 'simulate', forbidden)
+    tables = analyze.analyze(raws, tmp_path, repetitions, design, base)
+    indices = np.random.Generator(np.random.PCG64(np.random.SeedSequence([design['sampling']['seeds']['bootstrap'], 0]))).integers(0, n, size=(repetitions, n), dtype=np.int64)
+    effects = tables['effects']
+    for row in effects[effects['statistic'].eq('mean')].itertuples():
+        paired = sum(coef * independent[cell][row.metric] for cell, coef in contrasts[row.catalog_id]['terms'])
+        assert row.value == pytest.approx(paired.mean(), abs=1e-12)
+        assert [row.ci_low, row.ci_high] == pytest.approx(np.quantile(paired[indices].mean(axis=1), [.025, .975]), abs=1e-12)
+    for _, group in effects.groupby(['catalog_id', 'statistic']):
+        components = group.set_index('metric')
+        if all(f['id'] in components.index for f in base['functions']):
+            assert components.loc[[f['id'] for f in base['functions']], 'value'].to_numpy() @ criticality == pytest.approx(components.loc[analyze.LOSS, 'value'], abs=1e-12)
+
+
+@pytest.mark.parametrize('metric,invalid', [('completed_reviews', 31), ('review_queue_time', 10000),
+    ('critical_review_queue_time', 10000), ('monitoring_requests', 29), ('true_detections', 31), ('deadline_misses', 31)])
+def test_supplement_raw_diagnostics_reject_contract_violations(metric, invalid):
+    base = study.base_config()
+    base['parameters'].update(automatic_isolation=True, monitoring_offset=3)
+    model = compile_config(base)
+    row = simulate(model, 17)
+    raw = {key: np.asarray([value], dtype=float) for key, value in row.items()}
+    raw['run_index'] = np.array([0])
+    study.validate_raw(raw, 1, model)
+    raw[metric][0] = invalid
+    with pytest.raises(ValueError):
+        study.validate_raw(raw, 1, model)

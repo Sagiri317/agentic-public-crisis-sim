@@ -541,3 +541,98 @@ def test_A28_new_isolation_precedes_command_completion_same_tick():
     run.command_requests[2] = dict(completed_at=None)
     run.step()
     assert run.isolated(3) and not run.command_done[2] and run.command_active[2] == 0
+
+
+@pytest.mark.parametrize('offset', [1, 3, 5])
+def test_fixed_budget_once_per_node_release_relative_and_no_horizon_clamping(offset):
+    c = fixture(automatic_isolation=True, monitoring_offset=offset, horizon=6,
+                false_alarm_probability=1., recovery_delay=1)
+    for agent, release in zip(c['agents'], [0, 2, 6, 1]):
+        agent['release'] = release
+    for index in range(3):
+        result = simulate(c, 17, index, True)
+        requests = events(result, 'monitor_request')
+        expected = {a['id']: a['release'] + offset for a in c['agents'] if a['release'] + offset < 6}
+        assert {e['agent']: e['time'] for e in requests} == expected
+        assert len(requests) == len(expected) == result['monitoring_requests']
+        assert result['false_isolations'] == len(expected)
+        assert result['true_detections'] == 0
+
+
+def test_fixed_budget_quality_and_task_random_field_align_across_timing(monkeypatch):
+    uniforms = []
+    original = Run.u
+
+    def capture(self, mechanism, entity, time):
+        value = original(self, mechanism, entity, time)
+        if mechanism.endswith('_once'):
+            uniforms.append((self.index, mechanism, entity, time, value))
+        return value
+
+    monkeypatch.setattr(Run, 'u', capture)
+    for index in range(4):
+        fields, alerts = [], []
+        for offset in (1, 3, 5):
+            c = fixture(initial_nodes=['A01'], automatic_isolation=True,
+                        monitoring_offset=offset, detection_probability=.37, false_alarm_probability=.13)
+            m = compile_config(c)
+            assert (m.parameters['detection_probability'], m.parameters['false_alarm_probability']) == (.37, .13)
+            assert 'observation_level' not in m.parameters
+            uniforms.clear()
+            result = simulate(m, 19, index, True)
+            fields.append(uniforms.copy())
+            alerts.append([(e['agent'], e['true_anomaly'], e['alert']) for e in events(result, 'monitor_request')])
+        assert fields[0] == fields[1] == fields[2]
+        assert alerts[0] == alerts[1] == alerts[2]
+        assert {entry[1] for entry in fields[0]} == {'detect_once', 'false_alarm_once'}
+        assert all(entry[3] == 0 for entry in fields[0])
+
+
+def test_fixed_budget_inactive_and_display_identity():
+    original = fixture(automatic_isolation=False)
+    for offset in (None, 1, 3, 5):
+        changed = deepcopy(original)
+        changed['parameters'].update(monitoring_offset=offset, observation_level=2)
+        model = compile_config(changed)
+        assert not {'monitoring_offset', 'observation_level', 'detection_probability', 'false_alarm_probability'} & model.parameters.keys()
+        assert model.digest == compile_config(original).digest
+        assert simulate(model, 17, 0, True) == simulate(original, 17, 0, True)
+    original['parameters'].update(automatic_isolation=True, monitoring_offset=3)
+    changed = deepcopy(original)
+    changed['parameters']['observation_level'] = 2
+    changed['agents'][0]['name'] = 'display only'
+    changed['functions'][0]['name'] = 'display only'
+    assert compile_config(original).digest == compile_config(changed).digest
+    assert simulate(original, 17, 0, True) == simulate(changed, 17, 0, True)
+
+
+@pytest.mark.parametrize('offset', [0, -1, True, 1.5, 'early'])
+def test_invalid_monitoring_offset_rejected_even_without_isolation(offset):
+    with pytest.raises(ValueError):
+        compile_config(fixture(monitoring_offset=offset, automatic_isolation=False))
+
+
+@pytest.mark.parametrize('capacity', [1, 2, 3, 4, 6, 10, 'unlimited'])
+def test_capacity_review_accounting_and_unlimited_service_time(capacity):
+    result = simulate(fixture(oversight='full', review_capacity=capacity,
+        review_service_time=3, review_specificity=1., deadline_window=2), 17, 0, True)
+    records, last = result['review_records'], result['trajectory'][-1]
+    completed = [r for r in records if r['completed_at'] is not None]
+    assert result['human_review_load'] == len(records) == 4
+    assert result['completed_reviews'] == len(completed)
+    assert len(records) == len(completed) + len(last['review_queue']) + len(last['review_active'])
+    assert all(r['completed_at'] == r['started_at'] + 3 for r in completed)
+    assert result['review_queue_time'] == sum(len(t['review_queue']) for t in result['trajectory'])
+    assert result['unfinished_tasks'] == sum(t < 0 for t in last['resolved'])
+    assert result['deadline_misses'] == 4
+    assert result['false_review_denials'] <= result['completed_reviews']
+    if capacity == 'unlimited':
+        assert result['review_queue_time'] == result['critical_review_queue_time'] == 0
+        assert result['completed_reviews'] == 4 and result['review_blocking'] == 12
+
+
+def test_deadline_miss_excludes_unobserved_deadlines_and_completion_on_due_tick():
+    unobserved = simulate(fixture(oversight='full', review_service_time=3, horizon=2, deadline_window=2), 17)
+    assert unobserved['unfinished_tasks'] == 4 and unobserved['deadline_misses'] == 0
+    due = simulate(fixture(oversight='full', review_capacity='unlimited', review_service_time=2, deadline_window=2), 17)
+    assert due['unfinished_tasks'] == due['deadline_misses'] == 0

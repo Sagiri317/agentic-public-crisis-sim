@@ -27,7 +27,7 @@ OPTIONS = {
     'shock_profile': {'abrupt', 'progressive'},
 }
 PARAMETER_FIELDS = PROBABILITIES | POSITIVE_TIMES | set(OPTIONS) | {
-    'observation_level', 'automatic_isolation', 'initial_nodes', 'shock_time',
+    'observation_level', 'monitoring_offset', 'automatic_isolation', 'initial_nodes', 'shock_time',
     'resource_groups', 'partition_seed', 'review_capacity', 'command_capacity',
 }
 FIXED_FIELDS = {'primary_contaminated_utility', 'deadline_grace', 'progressive_steps',
@@ -106,6 +106,8 @@ def compile_config(config, resource_members=None):
     if p['review_capacity'] != 'unlimited':
         _number(p['review_capacity'], 'review_capacity', lower=1, integer=True)
     _number(p['observation_level'], 'observation_level', upper=2, integer=True)
+    if p['monitoring_offset'] is not None:
+        _number(p['monitoring_offset'], 'monitoring_offset', lower=1, integer=True)
     if type(p['automatic_isolation']) is not bool:
         raise ValueError('automatic_isolation must be boolean')
     for key in ('primary_contaminated_utility', 'function_failure_threshold', 'edge_transmission_weight'):
@@ -239,8 +241,10 @@ def compile_config(config, resource_members=None):
         for key in ('command_capacity', 'command_service_time', 'command_intercept_effectiveness', 'command_error_probability'):
             del active[key]
     if not p['automatic_isolation']:
-        for key in ('observation_level', 'detection_probability', 'false_alarm_probability', 'recovery_delay', 'rollback_success'):
+        for key in ('observation_level', 'monitoring_offset', 'detection_probability', 'false_alarm_probability', 'recovery_delay', 'rollback_success'):
             del active[key]
+    elif p['monitoring_offset'] is not None:
+        del active['observation_level']
     if p['verification_mode'] == 'none':
         del active['verification_effectiveness']
     identity = dict(c, parameters=active)

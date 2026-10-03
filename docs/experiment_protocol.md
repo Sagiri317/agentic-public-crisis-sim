@@ -1,4 +1,4 @@
-# 公共危机 Agent 研究：预注册实验协议
+# 公共危机 Agent 研究：实验协议
 
 > 文件用途：确定研究问题、实验格点、对比、统计计算与报告边界。动力学规则和基础配置见 `model.md`。本协议不代替 Pilot、独立接受、正式模拟或真实系统验证的运行证据。正文主要问题只有三个；敏感性不另立研究问题。
 
@@ -60,15 +60,17 @@ RQ1、RQ2以及RQ3的人工审核、分诊、信息等待主比较，默认不�
 
 `critical_review_queue_time`是机制诊断，不是独立福利结果。`unfinished_tasks`和`active_harms_at_horizon`用于揭示有限窗口截尾。不得把所有指标再加权成一个“综合最佳治理分数”。
 
+另报告非补偿性次级结果 `worst_function_deficit = max(F1,...,F7)`：先在每个run取七项归一化功能缺口的最大值，再求均值及配对差，单位为归一化服务缺口 × 抽象tick。它不同于“七项均值的最大值”，不乘功能关键性，不改变主结果L。仅从同一raw积分的主评价视图派生，不新增模拟配置。fixed-budget、审核容量、分诊及共同依赖partition的报告同时展示F1–F7方向和这个次级结果；总L改善不能代替功能间取舍。
+
 ## 4. 假设、主估计量与可证伪范围
 
-文献支持研究关系，不规定本合成系统必须出现某个方向。除位置预测量外，主估计量都为预注册线性对比；其精确配置由附录`primary_effects`给定。正文下式仅用于解释。
+文献支持研究关系，不规定本合成系统必须出现某个方向。除位置预测量外，主估计量都为预先规定线性对比；其精确配置由附录`primary_effects`给定。正文下式仅用于解释。
 
 | 编号 | 主问题 | 主估计量 | 不允许的解释 |
 |---|---|---|---|
 | H1a | 同一受影响数量是否足够 | 主mapping的交叉拟合增量R² | 现实因果位置效应、对未见过的新位置外推 |
 | H1b | 共同依赖是否重塑均值/尾部 | 固定data情景K2−K1的均值差和ES95差 | 分散一定优越、显著比例是现实发生概率 |
-| H2a | 发现阶段是否改变处置效果 | `Δiso(O2)−Δiso(O0)`，固定同期暴露 | 看两个单点显著与否就宣称交互 |
+| H2a | 前移持续监测窗口是否改变处置效果 | `Δiso(O2)−Δiso(O0)`，固定同期暴露 | 等检测预算的纯时点效应、以两个单点显著与否代替交互 |
 | H2b | 暴露节奏是否改变隔离效果 | `Δiso(progressive,O2)−Δiso(abrupt,O2)` | 完整渐发危机理论、实际受损集合完全相同 |
 | H3a | 审核的时间和容量边界 | 审核效应d2−d10；d5时cap1−cap3 | 人优于AI或AI优于人 |
 | H3b | 优先配置是否改变公共后果 | d5、cap1下life_safety−FIFO | 目标对齐自动验证最佳领导方式 |
@@ -77,7 +79,7 @@ RQ1、RQ2以及RQ3的人工审核、分诊、信息等待主比较，默认不�
 
 令`Δhuman(d,c)=E[L(full,d,c)]−E[L(autonomy,d)]`。容量交互中同一个autonomy参照出现两次，会代数抵消；实现必须先合并同cell系数，再计算与bootstrap，不能伪造两份独立参照。
 
-位置R²加附录九项线性主效应，构成报告的有限主估计量集合。其余预登记直接比较、OFAT与额外分组均为次级或敏感性，不能因结果醒目而升级。
+位置R²加附录九项线性主效应，构成报告的有限主估计量集合。其余预先规定直接比较、OFAT与额外分组均为次级或敏感性，不能因结果醒目而升级。
 
 ## 5. RQ1设计及估计细节
 
@@ -120,6 +122,8 @@ Bootstrap在原两折内按run index簇重抽样，每个抽中的index携带所
 
 固定同一data资源情景，无初始节点错误。登记每种暴露、每个O下`isolation−no_isolation`；同一O与隔离状态下`progressive−abrupt`；再按§4登记两项主交互。另在progressive下的观察交互、O0下的暴露交互为次级，不能事后选择。O改变的是监测机会（包括误报机会），不把观察次数不同的对比写成等次数下的纯检测灵敏度效应。
 
+O0/O1/O2保留为完整持续监测政策：窗口前移也增加累计检测和误报机会。其结果只能解释为**前移持续监测窗口的整体政策效果**，不能单独识别固定监测资源下提前检查的作用。
+
 无隔离时O没有治理消费者，因此若规范化后多个配置完全相同，复用同一模拟。保留相应结构性零对比，不把重复role当成独立证据。
 
 ### 6.2 检测与误报
@@ -133,6 +137,14 @@ Bootstrap在原两折内按run index簇重抽样，每个抽中的index携带所
 五个代表初始节点及额外质量切片在附录写死。对每个节点登记critical−none、global−none、critical−global；对A04在critical和global内分别登记中心与上下两档的相邻质量对比。none下质量参数无行为消费者，不生成多次相同模拟。
 
 核验负荷对覆盖范围内所有新消息计数。它不含时间与金钱，故“损失下降但核验工作量增加”不能被写成经过社会成本权衡后的净福利结论。
+
+### 6.4 固定监测预算下的时点补充实验
+
+本补充实验属于RQ2，解决持续监测时点与累计检查次数同时变化的识别缺口，不新增RQ，也不替换§6.1。外生情景固定为该实验的中心data冲击：无初始错误、同期暴露、中心概率与单组基准partition；检测概率、误报率和其他条件均保持基础中心值，自动隔离开启，指挥为distributed。
+
+附录 `fixed_budget` 的 `monitoring_offset` 依次定义early、middle、late。每个Agent仅在 `t=release+offset` 的监测阶段获得一次主动检测机会，不以方案形成/行动完成为门槛；“release后第1个tick”明确为release+1，不含release当tick。合法窗口为 `0 <= t < horizon`；目标不在窗口则不检查、不补到尾部、不顺延。统计实际 `monitoring_requests`，不得机械假定每run恰好30次。在本固定中心窗口中如全部目标合法，三组每节点检查次数应完全相同。检测与误报分别使用节点任务的一次潜在随机数，三时点保持CRN；当前真异常仍由当时状态决定，不能要求三组告警数相同。
+
+运行前规定三项方向：**middle−early、late−early、late−middle**。均值ΔL为本补充实验的主要输出；ES95差及其总L同尾部功能贡献为次级。每项还披露F1–F7均值差、最大单项功能缺口均值差、真检测、误隔离、实际检查请求数、曾受损节点数和外部错误动作；三组同时报告这些量的水平。使用既有run-index簇bootstrap，不新增评分、切片、seed或检测质量条件。允许解释为**检测次数受控时的监测时点效果**，包括提前隔离及恢复对后续传播和服务的影响；不等于持续监测政策效果，更不是现实政策因果估计。
 
 ## 7. RQ3设计、交互和敏感性
 
@@ -166,6 +178,14 @@ hard/grace、受损效用和权重敏感性均从同一轨迹重算。延长hori
 
 全部时间长度都是抽象单位。短期窗口不要求cap1把所有任务清空，也不把未完成样本从统计中删除。不能通过不断延长模拟直到某个政策排名稳定来挑窗口。
 
+### 7.5 审核容量曲线与监督拥塞
+
+本补充实验属于RQ3，保留原人工实验。固定A04初始错误、无资源冲击、full、all、life_safety、deadline_window=5、review_service_time=3；审核灵敏度/特异度、information policy及其他参数保持中心值，指挥为distributed。仅改变附录 `oversight_capacity` 的七档容量；`unlimited`沿用既有“消除容量排队、仍需完整服务时长”的语义。每档full均减去相同外生情景的autonomy，规范化后复用同一个参照，不给它复制七份随机样本。
+
+运行前规定每档 **human−autonomy** 的L均值差、F1–F7差及最大单项功能缺口差；按容量顺序全部展示。报告审核请求与完成数、未开始服务的普通/生命安全加权排队tick、未完成任务、截止窗口内已观察到的deadline miss、五项互斥阻塞分解、误拒绝及外部错误动作的水平和差。完成数不包含恰在t=horizon才能完成的服务。排队积分和服务阻塞不同，不能相加充当独立因果贡献。
+
+“**监督拥塞**”操作性地指：危机响应窗口内，需审核任务形成的监督需求超过可用人工处理能力，审核虽可能减少错误行动，却可能通过排队、未完成和延期产生新的公共功能损失。这是本文从模型提出的机制概念，尚非现实经验验证的普遍定律。结合全部容量的排队、完成、延期、错误动作和ΔL检查明显过载、过渡及边际收益减弱；相邻格点的水平变化仅作描述，不新增事后显著性检验。若置信区间支持从净损害到净收益，只报告离散容量间的区间，不插值构造临界容量；若无清晰阈值、无单调关系或没有反转，照实保留。生命安全优先是固定价值偏好，F1/F2等功能可能受挤压，不解释为普遍最优治理。
+
 ## 8. 配置规范化、去重与对比所有权
 
 ### 8.1 语义去重而非文件名去重
@@ -175,7 +195,7 @@ hard/grace、受损效用和权重敏感性均从同一轨迹重算。延长hori
 1. `shock_type=none`时资源概率、K、partition、展开方式等无消费者字段从身份中删除。
 2. 有资源时将K/partition解析为精确成员组；身份用组集合，不把seed标签当成行为差异。组内和组间排序固定。
 3. 无人工审核时删除人工质量、队列、范围、优先级字段；无指挥gate时删除指挥服务参数。
-4. 无自动隔离且没有其他检测结果消费者时删除检测字段；无额外核验时删除额外核验质量。
+4. 无自动隔离且没有其他检测结果消费者时删除检测字段（包括monitoring_offset）；fixed-budget启用时删除无消费者的observation_level。monitoring_offset为空表示原持续监测，正整数表示一次release-relative检测；无额外核验时删除额外核验质量。
 5. 映射、评分视图、RQ、family、输出路径、展示标题、role ID及agent/function纯显示name不进入物理config身份。
 6. 保留所有真正影响动力学、观察窗口或已注册raw的参数；不可只因某个Pilot样本里没走到分支就删除字段。
 
@@ -193,11 +213,13 @@ hard/grace、受损效用和权重敏感性均从同一轨迹重算。延长hori
 
 以下是完整规则，不允许Formal后再加：
 
-- dependency及其partition：§5.3全部相邻/基准K1对比；均值、ES95、曾受损数、外部错误动作。
+- dependency及其partition：§5.3全部相邻/基准K1对比；均值、ES95、曾受损数、外部错误动作；均值另含F1–F7及最大单项功能缺口。
 - observation：§6.1全部隔离、暴露直接效果及两类固定端点交互。
 - detection：§6.2组合参照与两轴相邻对比。
+- fixed_budget：§6.4的三个时点对比；主视图均值和L的ES95及同尾部功能分解。
 - verification：§6.3三种策略对比及A04相邻质量对比。
 - human与审核OFAT：每个full cell对匹配autonomy；对OFAT另比较同条件中心full。
+- oversight_capacity：§7.5每档full对匹配autonomy；全部诊断及非补偿性结果使用均值。
 - triage：§7.1两个优先级对FIFO及容量交互。
 - command及容量/质量：每组条件下selective/centralized对distributed、centralized对selective；在同一结构及其他参数相同下，全部登记capacity3−1，以及质量.4−0、.8−.4的相邻对比；所有无指挥参数差异规范化为相同参照。
 - information：§7.3三个政策对比及同信息政策下human对照。
@@ -206,7 +228,7 @@ hard/grace、受损效用和权重敏感性均从同一轨迹重算。延长hori
 - information_error与supplemental_check：每档参数内integrated−fast，及该差值对中心参数的差中差。
 - horizon：同窗口内full−autonomy；其与中心窗口效应的差记“窗口依赖”，不当成现实政策效果。
 
-除dependency的ES95外，次级比较默认统计量为均值。除主结果规定的评分敏感性外，不把每个次级对比再与全部view相乘。
+除dependency与fixed_budget的ES95外，次级比较默认统计量为均值。最大单项功能缺口仅按主视图求均值，不把其ES95或其他视图展开。除主结果规定的评分敏感性外，不把每个次级对比再与全部view相乘。
 
 ## 9. 统计估计、共同随机数与不确定性
 
@@ -224,7 +246,7 @@ ES95对比是`sum_j a_j ES95(Y_j)`，**不是**`ES95(sum_j a_j Y_j)`。经验尾
 
 随机根只由固定master seed和run index构造；具体键为具有类型的稳定元组：`(master_seed,run_index,mechanism,entity,event_time,event_ordinal)`。该元组必须编码为UTF-8 JSON数组（ensure_ascii=false、无多余空格；对象键排序、实体集合排序），SHA-256后取前52bit，令`U=(x+0.5)/2^52`，得到严格在(0,1)内的确定性伪随机数。禁止使用Python进程随机hash。
 
-键**不含config hash、policy、treatment、family或输出路径**。资源组键采用资源类型与成员集合；消息采用发送者、接收者和发送tick（同tick最多一次）；审核判断采用节点任务身份与判断类别；检测/误报采用节点与tick；回滚采用节点的首个错误动作身份。外生冲击、补充检查、信息不足、审核与回滚使用不同mechanism域。
+键**不含config hash、policy、treatment、family或输出路径**。资源组键采用资源类型与成员集合；消息采用发送者、接收者和发送tick（同tick最多一次）；审核判断采用节点任务身份与判断类别；持续检测/误报采用节点与tick，一次主动检查采用节点任务身份；回滚采用节点的首个错误动作身份。外生冲击、补充检查、信息不足、审核与回滚使用不同mechanism域。
 
 全部潜在随机键按下表冻结；一个窗口每节点只有一个初始任务，因此以节点ID即可代表该任务。表外不得新增共享随机域：
 
@@ -235,7 +257,8 @@ ES95对比是`sum_j a_j ES95(Y_j)`，**不是**`ES95(sum_j a_j Y_j)`。经验尾
 | `local`、`extra`、`adopt` | `[发送节点, 接收节点]` | 发送tick |
 | `supplemental` | 接收节点ID | 检查tick |
 | `missing` | 节点ID | 0 |
-| `detect`、`false_alarm` | 节点ID | 监测tick |
+| `detect`、`false_alarm`（持续监测） | 节点ID | 监测tick |
+| `detect_once`、`false_alarm_once`（fixed-budget） | 节点ID | 0 |
 | `review_sensitivity`、`review_specificity` | 节点ID | 0 |
 | `command_intercept`、`command_corrupt` | 目标节点ID | 0 |
 | `unsafe_execute`、`rollback` | 节点ID | 0 |
@@ -278,7 +301,7 @@ ES95对比是`sum_j a_j ES95(Y_j)`，**不是**`ES95(sum_j a_j Y_j)`。经验尾
 
 `effects.csv`必须有`estimand_id, estimand_type, statistic, view, metric, value, ci_low, ci_high, status, direction, n_runs`及记录配置或对比 ID 的 `catalog_id`。对没有计算区间的纯level诊断行，区间为空并注明`not_computed`，不得填0。功能分解作为不同metric行，不建7张新表；结构性零行保留。
 
-### 10.3 八张有明确用途的图
+### 10.3 十张有明确用途的图
 
 | 图 | 固定消费者与选择规则 |
 |---|---|
@@ -290,6 +313,8 @@ ES95对比是`sum_j a_j ES95(Y_j)`，**不是**`ES95(sum_j a_j Y_j)`。经验尾
 | 6 | 主人工效应的时限/容量结果；指挥三结构在autonomy下的时限效果；叠加人工只作次级注释 |
 | 7 | 两档有限容量×三个时限的三种分诊；总loss和七项功能分解，队列诊断不作第二个福利证明 |
 | 8 | 信息政策×时限，显示已接受覆盖、真实正确比例及损失/阻塞；不能只保留最终行动者 |
+| 9 | fixed-budget三项时点对比、F1–F7和实际检查次数；均值为主，ES95在报告中列为次级 |
+| 10 | 全部七档容量的human−autonomy曲线、F1–F7及排队/完成诊断；unlimited为独立类别，不伪造连续容量 |
 
 图中一条曲线连接离散条件，只为阅读，不估计连续临界点。CI跨0的格点直接显示不确定。所有筛选与排序规则由分析代码和实验设计确定，`figures.py`只渲染，不临时挑最大效应、显著个数或漂亮示例。图内标题不得预写“证明人工有害”等结果。
 
@@ -313,6 +338,8 @@ ES95对比是`sum_j a_j ES95(Y_j)`，**不是**`ES95(sum_j a_j Y_j)`。经验尾
 
 **实验与展示**：每个主term命中唯一配置；每条次级对比可生成；无消费者参数规范化；角色复用但不删除null；全部主量有固定消费者；主图切片不能按效果调整；长窗口前缀完全一致；所有finite指标有定义和单位。
 
+**补充实验**：fixed-budget每Agent每run至多一次机会、目标为release+offset、超窗不补查、三组质量相同且随机数对齐、关闭隔离规范化、显示名不改变身份；capacity全部七档与匹配参照、unlimited保持服务时长、外生情景一致；审核请求=已完成+仍排队+仍在服（trace核验），raw完成数不大于请求数，误拒绝不大于完成数。最大功能缺口仅由已有积分派生；所有阶段共用执行、统计与图表路径。
+
 ### 11.3 不能作为验收标准的内容
 
 不要求任何政策显著更好，不要求出现反转或均值/尾部权衡，不要求每条边在小样本都传播过，不要求due_first在每个情景都与FIFO不同，也不要求补充信息、领导或人工监督出现某种结论。
@@ -323,9 +350,11 @@ ES95对比是`sum_j a_j ES95(Y_j)`，**不是**`ES95(sum_j a_j Y_j)`。经验尾
 
 科学周期：验证 → Smoke → Pilot → 独立接受 → Formal → 最终统计/独立复算。Smoke 遍历全格点；Formal 按附录执行 Bootstrap、统计与固定图表。
 
+本次补充实验的定义先于其Smoke/Pilot/Formal写入本文；运行目录保留开始时的协议/源码哈希、环境、种子、设计指纹和结束时的产物校验，失败保留部分输出。Pilot后以独立计算路径核对配置覆盖、请求/队列守恒、功能分解、统计和报告，不以方向验收；通过后才启动Formal。Formal另与修改前已有输出核对原有配置的全部共同raw字段，并独立复算关键数字。独立复算指不调用生产估计函数的核对，不宣称获得未经实施的外部专家或人工审定。历史实验的时间链不足以证明事前登记，因此全文称实验协议或预先规定的比较，不作整个历史研究已获事前登记证明的宣称。
+
 仅涉及排版、参考文献格式或措辞且不改公式、参数、选择和估计的展示修改不重跑模拟。科学语义变化必须重新 Pilot、独立接受后才能进入 Formal。
 
-已有源码和两份说明不一致时属于待修缺陷，不能把旧结果当成更高权威来反改假设。已运行过Formal之后，不允许用重新Pilot为按方向调参辩护。新科学设计可以改变问题，但必须明确另行审定，不能悄悄回填成当前预注册结果。
+已有源码和两份说明不一致时属于待修缺陷，不能把旧结果当成更高权威来反改假设。已运行过Formal之后，不允许用重新Pilot为按方向调参辩护。新科学设计可以改变问题，但必须明确另行审定，不能悄悄回填为原协议内的比较。
 
 ## 13. 给课程报告的使用约束
 
@@ -335,7 +364,7 @@ ES95对比是`sum_j a_j ES95(Y_j)`，**不是**`ES95(sum_j a_j Y_j)`。经验尾
 
 ## 附录A. 实验与评分的精确定义
 
-本块是格点、种子和视图的唯一手工维护位置，数值均在查看本设计的新Formal结果之前固定。实验设计仅由 `study.build_catalog()` 展开。主效应统一使用主视图，并按§3.2重算预登记评价敏感性，不设置逐项view选择字段。正文与该块如不一致，必须先修订，不能运行时自行挑选解释。
+本块是格点、种子和视图的唯一手工维护位置，数值均在查看本设计的新Formal结果之前固定。实验设计仅由 `study.build_catalog()` 展开。主效应统一使用主视图，并按§3.2重算预先规定评价敏感性，不设置逐项view选择字段。正文与该块如不一致，必须先修订，不能运行时自行挑选解释。
 
 <!-- BEGIN EXPERIMENT SPEC -->
 ```yaml
@@ -356,9 +385,11 @@ families:
   - {id: dependency_partition, rq: RQ1, tier: sensitivity, fixed: {initial_nodes: [], resource_groups: 2}, axes: {shock_type: [model, data, tool], shock_probability: [0.1, 0.2], partition_seed: [4101, 4102, 4103, 4104]}}
   - {id: observation, rq: RQ2, tier: primary, fixed: {initial_nodes: [], shock_type: data, shock_probability: 0.2, resource_groups: 1, partition_seed: 0, command_structure: distributed}, axes: {shock_profile: [abrupt, progressive], observation_level: [0, 1, 2], automatic_isolation: [false, true]}}
   - {id: detection, rq: RQ2, tier: secondary, fixed: {initial_nodes: [], shock_type: data, shock_probability: 0.2, resource_groups: 1, partition_seed: 0, command_structure: distributed, observation_level: 2, automatic_isolation: true}, axes: {shock_profile: [abrupt, progressive], detection_probability: [0.2, 0.5, 0.8], false_alarm_probability: [0.001, 0.005, 0.02]}}
+  - {id: fixed_budget, rq: RQ2, tier: secondary, fixed: {initial_nodes: [], shock_type: data, shock_probability: 0.2, resource_groups: 1, partition_seed: 0, shock_profile: abrupt, command_structure: distributed, automatic_isolation: true}, axes: {monitoring_offset: [1, 3, 5]}}
   - {id: verification, rq: RQ2, tier: secondary, fixed: {shock_type: none, command_structure: distributed}, axes: {initial_nodes: [[A04], [A08], [A12], [A21], [A28]], verification_mode: [none, critical, global]}}
   - {id: verification_quality, rq: RQ2, tier: sensitivity, fixed: {initial_nodes: [A04], shock_type: none, command_structure: distributed}, axes: {verification_mode: [critical, global], verification_effectiveness: [0.2, 0.8]}}
   - {id: human, rq: RQ3, tier: primary, fixed: {initial_nodes: [A04], shock_type: none, command_structure: distributed}, axes: {oversight: [autonomy, full], deadline_window: [2, 5, 10], review_capacity: [1, 3, unlimited]}}
+  - {id: oversight_capacity, rq: RQ3, tier: secondary, fixed: {initial_nodes: [A04], shock_type: none, command_structure: distributed, oversight: full, review_scope: all, review_priority: life_safety, deadline_window: 5, review_service_time: 3}, axes: {review_capacity: [1, 2, 3, 4, 6, 10, unlimited]}}
   - {id: review_sensitivity, rq: RQ3, tier: sensitivity, fixed: {initial_nodes: [A04], shock_type: none, command_structure: distributed, oversight: full}, axes: {review_sensitivity: [0.6, 0.95], deadline_window: [2, 5, 10]}}
   - {id: review_specificity, rq: RQ3, tier: sensitivity, fixed: {initial_nodes: [A04], shock_type: none, command_structure: distributed, oversight: full}, axes: {review_specificity: [0.9, 0.99], deadline_window: [2, 5, 10]}}
   - {id: review_duration, rq: RQ3, tier: sensitivity, fixed: {initial_nodes: [A04], shock_type: none, command_structure: distributed, oversight: full}, axes: {review_service_time: [1, 5], deadline_window: [2, 5, 10]}}
