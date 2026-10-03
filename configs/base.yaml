@@ -1,0 +1,188 @@
+parameters:
+  horizon: 24
+  deadline_window: 5
+  information_policy: balanced
+  information_error_rate: 0.25
+  supplemental_check_effectiveness: 0.25
+  propagation_probability: 0.25
+  local_verification_probability: 0.2
+  verification_mode: none
+  verification_effectiveness: 0.5
+  observation_level: 0
+  detection_probability: 0.5
+  false_alarm_probability: 0.005
+  automatic_isolation: false
+  execution_autonomy: 0.8
+  recovery_delay: 2
+  rollback_success: 0.8
+  oversight: autonomy
+  review_scope: all
+  review_priority: life_safety
+  review_sensitivity: 0.8
+  review_specificity: 0.95
+  review_capacity: 3
+  review_service_time: 3
+  false_denial_hold: 2
+  command_structure: distributed
+  command_capacity: 3
+  command_service_time: 1
+  command_intercept_effectiveness: 0.8
+  command_error_probability: 0.25
+  initial_nodes:
+  - A04
+  shock_type: none
+  shock_probability: 0.2
+  shock_time: 1
+  shock_profile: abrupt
+  resource_groups: 1
+  partition_seed: 0
+fixed:
+  primary_contaminated_utility: 0.5
+  deadline_grace: 4
+  progressive_steps: 4
+  function_failure_threshold: 0.7
+  information_policies:
+    fast:
+      threshold: 0.0
+      max_wait: 0
+    balanced:
+      threshold: 0.5
+      max_wait: 1
+    integrated:
+      threshold: 1.0
+      max_wait: 3
+  life_safety_functions:
+  - F3
+  - F4
+  - F5
+  - F6
+  - F7
+  command_agent: A28
+  external_action_stages:
+  - execution
+  - communication
+  message_latency: 1
+  edge_transmission_weight: 0.64
+agents:
+  - {id: A01, name: 气象监测, stage: sensing, release: 0, authority: 0, criticality: 0.5, reversibility: 0.8}
+  - {id: A02, name: 降雨监测, stage: sensing, release: 0, authority: 0, criticality: 0.5, reversibility: 0.8}
+  - {id: A03, name: 水位监测, stage: sensing, release: 0, authority: 0, criticality: 0.5, reversibility: 0.8}
+  - {id: A04, name: 道路状态, stage: sensing, release: 0, authority: 0, criticality: 0.5, reversibility: 0.8}
+  - {id: A05, name: 基础设施监测, stage: sensing, release: 0, authority: 0, criticality: 0.5, reversibility: 0.8}
+  - {id: A06, name: 公众报告汇集, stage: sensing, release: 0, authority: 0, criticality: 0.5, reversibility: 0.8}
+  - {id: A07, name: 数据融合, stage: assessment, release: 1, authority: 0, criticality: 0.5, reversibility: 0.8}
+  - {id: A08, name: 洪涝风险研判, stage: assessment, release: 2, authority: 0, criticality: 0.9, reversibility: 0.8}
+  - {id: A09, name: 道路风险研判, stage: assessment, release: 2, authority: 0, criticality: 0.5, reversibility: 0.8}
+  - {id: A10, name: 人口暴露研判, stage: assessment, release: 2, authority: 0, criticality: 0.5, reversibility: 0.8}
+  - {id: A11, name: 医院容量研判, stage: assessment, release: 2, authority: 0, criticality: 0.5, reversibility: 0.8}
+  - {id: A12, name: 疏散方案, stage: planning, release: 3, authority: 0, criticality: 0.9, reversibility: 0.8}
+  - {id: A13, name: 救援方案, stage: planning, release: 3, authority: 0, criticality: 0.9, reversibility: 0.8}
+  - {id: A14, name: 交通方案, stage: planning, release: 3, authority: 0, criticality: 0.5, reversibility: 0.8}
+  - {id: A15, name: 资源方案, stage: planning, release: 3, authority: 0, criticality: 0.5, reversibility: 0.8}
+  - {id: A16, name: 沟通方案, stage: planning, release: 3, authority: 0, criticality: 0.5, reversibility: 0.8}
+  - {id: A17, name: 道路管控, stage: execution, release: 4, authority: 2, criticality: 0.9, reversibility: 0.8}
+  - {id: A18, name: 疏散调度, stage: execution, release: 4, authority: 2, criticality: 0.9, reversibility: 0.5}
+  - {id: A19, name: 救援调度, stage: execution, release: 4, authority: 2, criticality: 0.9, reversibility: 0.5}
+  - {id: A20, name: 安置调度, stage: execution, release: 4, authority: 2, criticality: 0.5, reversibility: 0.8}
+  - {id: A21, name: 医疗调度, stage: execution, release: 4, authority: 2, criticality: 0.9, reversibility: 0.5}
+  - {id: A22, name: 公用设施管控, stage: execution, release: 4, authority: 2, criticality: 0.5, reversibility: 0.8}
+  - {id: A23, name: 排水管控, stage: execution, release: 4, authority: 2, criticality: 0.5, reversibility: 0.8}
+  - {id: A24, name: 应急物资, stage: execution, release: 4, authority: 2, criticality: 0.5, reversibility: 0.8}
+  - {id: A25, name: 公众预警, stage: communication, release: 4, authority: 2, criticality: 0.9, reversibility: 0.5}
+  - {id: A26, name: 媒体信息发布, stage: communication, release: 4, authority: 1, criticality: 0.5, reversibility: 0.8}
+  - {id: A27, name: 热线响应, stage: communication, release: 4, authority: 1, criticality: 0.5, reversibility: 0.8}
+  - {id: A28, name: 事件指挥支持, stage: coordination, release: 3, authority: 1, criticality: 0.9, reversibility: 0.8}
+  - {id: A29, name: 跨部门信息协调, stage: coordination, release: 5, authority: 1, criticality: 0.9, reversibility: 0.8}
+  - {id: A30, name: 现场反馈更新, stage: coordination, release: 4, authority: 0, criticality: 0.5, reversibility: 0.8}
+functions:
+  - {id: F1, name: 风险态势感知, criticality: 0.8, members: {A01: 1, A02: 1, A03: 1, A04: 1, A05: 1, A06: 1, A07: 1, A08: 3, A09: 1, A10: 1, A28: 2, A30: 1}}
+  - {id: F2, name: 道路与交通判断, criticality: 0.8, members: {A04: 1, A09: 1, A14: 2, A17: 3, A30: 1}}
+  - {id: F3, name: 疏散与安置, criticality: 1.0, members: {A10: 1, A12: 2, A17: 2, A18: 3, A20: 1, A25: 2, A28: 2, A29: 2}}
+  - {id: F4, name: 救援与资源调度, criticality: 1.0, members: {A13: 2, A15: 2, A17: 1, A19: 3, A24: 1, A28: 2, A29: 2}}
+  - {id: F5, name: 医疗连续性, criticality: 1.0, members: {A11: 1, A13: 1, A15: 1, A17: 1, A21: 3, A28: 2}}
+  - {id: F6, name: 公共预警与危机沟通, criticality: 1.0, members: {A16: 2, A25: 3, A26: 1, A27: 1, A28: 2, A29: 2}}
+  - {id: F7, name: 城市生命线与排涝保障, criticality: 1.0, members: {A03: 1, A05: 1, A08: 1, A15: 1, A22: 3, A23: 3, A24: 1, A28: 2, A29: 1, A30: 1}}
+edges:
+  - {source: A01, target: A07, role: required, verify: false}
+  - {source: A01, target: A08, role: supplemental, verify: false}
+  - {source: A02, target: A07, role: required, verify: false}
+  - {source: A02, target: A08, role: supplemental, verify: false}
+  - {source: A03, target: A07, role: required, verify: false}
+  - {source: A03, target: A08, role: supplemental, verify: false}
+  - {source: A04, target: A07, role: required, verify: false}
+  - {source: A04, target: A09, role: required, verify: false}
+  - {source: A05, target: A07, role: required, verify: false}
+  - {source: A05, target: A09, role: supplemental, verify: false}
+  - {source: A06, target: A07, role: required, verify: false}
+  - {source: A06, target: A10, role: required, verify: false}
+  - {source: A06, target: A30, role: required, verify: false}
+  - {source: A07, target: A08, role: required, verify: false}
+  - {source: A07, target: A09, role: required, verify: false}
+  - {source: A07, target: A10, role: required, verify: false}
+  - {source: A07, target: A11, role: required, verify: false}
+  - {source: A08, target: A12, role: required, verify: true}
+  - {source: A08, target: A13, role: required, verify: true}
+  - {source: A08, target: A14, role: supplemental, verify: false}
+  - {source: A08, target: A15, role: required, verify: false}
+  - {source: A08, target: A16, role: required, verify: false}
+  - {source: A08, target: A28, role: required, verify: true}
+  - {source: A09, target: A12, role: required, verify: true}
+  - {source: A09, target: A13, role: required, verify: true}
+  - {source: A09, target: A14, role: required, verify: false}
+  - {source: A09, target: A28, role: required, verify: true}
+  - {source: A10, target: A12, role: required, verify: true}
+  - {source: A10, target: A13, role: required, verify: true}
+  - {source: A10, target: A20, role: required, verify: false}
+  - {source: A10, target: A28, role: required, verify: true}
+  - {source: A11, target: A13, role: required, verify: true}
+  - {source: A11, target: A15, role: required, verify: false}
+  - {source: A11, target: A21, role: required, verify: true}
+  - {source: A11, target: A28, role: required, verify: true}
+  - {source: A12, target: A18, role: required, verify: true}
+  - {source: A12, target: A20, role: required, verify: false}
+  - {source: A12, target: A25, role: required, verify: true}
+  - {source: A13, target: A19, role: required, verify: true}
+  - {source: A13, target: A21, role: required, verify: true}
+  - {source: A13, target: A24, role: required, verify: false}
+  - {source: A14, target: A17, role: required, verify: true}
+  - {source: A14, target: A18, role: required, verify: true}
+  - {source: A14, target: A19, role: required, verify: true}
+  - {source: A14, target: A22, role: required, verify: false}
+  - {source: A14, target: A23, role: required, verify: false}
+  - {source: A15, target: A19, role: required, verify: true}
+  - {source: A15, target: A20, role: required, verify: false}
+  - {source: A15, target: A21, role: required, verify: true}
+  - {source: A15, target: A24, role: required, verify: false}
+  - {source: A16, target: A25, role: required, verify: true}
+  - {source: A16, target: A26, role: required, verify: false}
+  - {source: A16, target: A27, role: required, verify: false}
+  - {source: A17, target: A18, role: supplemental, verify: true}
+  - {source: A18, target: A25, role: supplemental, verify: true}
+  - {source: A19, target: A21, role: supplemental, verify: true}
+  - {source: A20, target: A25, role: supplemental, verify: true}
+  - {source: A22, target: A23, role: supplemental, verify: false}
+  - {source: A23, target: A22, role: supplemental, verify: false}
+  - {source: A24, target: A19, role: supplemental, verify: true}
+  - {source: A28, target: A12, role: supplemental, verify: true}
+  - {source: A28, target: A13, role: supplemental, verify: true}
+  - {source: A28, target: A17, role: supplemental, verify: true}
+  - {source: A28, target: A18, role: supplemental, verify: true}
+  - {source: A28, target: A19, role: supplemental, verify: true}
+  - {source: A28, target: A21, role: supplemental, verify: true}
+  - {source: A28, target: A25, role: supplemental, verify: true}
+  - {source: A28, target: A29, role: required, verify: false}
+  - {source: A29, target: A12, role: supplemental, verify: true}
+  - {source: A29, target: A13, role: supplemental, verify: true}
+  - {source: A29, target: A18, role: supplemental, verify: true}
+  - {source: A29, target: A19, role: supplemental, verify: true}
+  - {source: A29, target: A21, role: supplemental, verify: true}
+  - {source: A29, target: A22, role: supplemental, verify: false}
+  - {source: A29, target: A23, role: supplemental, verify: false}
+  - {source: A29, target: A25, role: supplemental, verify: true}
+  - {source: A30, target: A07, role: supplemental, verify: false}
+  - {source: A30, target: A28, role: supplemental, verify: true}
+  - {source: A30, target: A29, role: required, verify: false}
+resource_users:
+  model: [A07, A08, A09, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, A22, A23, A24, A25, A26, A27, A28, A29]
+  data: [A01, A02, A03, A04, A05, A06, A07, A08, A09, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, A22, A23, A24, A25, A26, A27, A28, A29, A30]
+  tool: [A17, A18, A19, A20, A21, A22, A23, A24, A25, A26, A27]

@@ -1,0 +1,16 @@
+name: reproducibility
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: sudo apt-get update && sudo apt-get install -y fonts-noto-cjk
+      - run: pip install -r reproducibility/requirements-lock.txt
+      - run: pip install --no-deps --no-build-isolation -e .
+      - run: python -m pytest -q
+      - run: python reproducibility/run_all.py --smoke
+      - run: test -z "$(git status --porcelain)"

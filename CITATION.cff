@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "引用时请注明这是合成情景模拟软件仓库，不是经过同行评议的论文。"
+title: "公共危机 Agent 合成情景模拟"
+authors:
+  - name: "agentic-public-crisis-sim 贡献者"
+version: 0.1.0
+license: MIT
+repository-code: "https://github.com/Sagiri317/agentic-public-crisis-sim"
+type: software
