@@ -1,5 +1,7 @@
 """Protocol coverage, ownership, estimators and raw production contracts."""
 from copy import deepcopy
+from fractions import Fraction
+from math import fsum
 from pathlib import Path
 import sys
 from types import SimpleNamespace
@@ -97,24 +99,143 @@ def test_es95_exact_mass_and_tied_function_contributions():
     for values, expected in ((np.r_[np.zeros(99), 100.], 20.),
                              (np.array([0., 10., 20.]), 20.),
                              (np.arange(21.), (20. + .05 * 19.) / 1.05)):
-        assert analyze._tail_statistic(values, values[:, None])[0] == pytest.approx(expected)
+        # Distinct integer losses preserve the previous no-boundary-tie result.
+        assert analyze._tail_statistic(values.astype(np.int64), values[:, None])[0] == pytest.approx(expected)
     functions = np.zeros((3, 7))
     functions[1, 0], functions[2, 1] = 10., 5.
     criticality = np.arange(1., 8.)
     loss = functions @ criticality
-    weights = analyze.tail_weights(loss)
+    keys = loss.astype(np.int64)
+    weights = analyze.tail_weights(keys)
     assert np.array_equal(weights, [0., .5, .5])
-    components = analyze._tail_statistic(loss, functions)
+    components = analyze._tail_statistic(keys, functions)
     assert np.array_equal(components, [5., 2.5, 0., 0., 0., 0., 0.])
-    assert components @ criticality == analyze._tail_statistic(loss, loss[:, None])[0]
+    assert components @ criticality == analyze._tail_statistic(keys, loss[:, None])[0]
     indices = np.array([[0, 1, 2], [1, 1, 2], [0, 0, 0]])
-    assert analyze._bootstrap_tail(loss, functions, indices) @ criticality == pytest.approx(
-        analyze._bootstrap_tail(loss, loss[:, None], indices)[:, 0])
-    assert np.array_equal(weights[::-1], analyze.tail_weights(loss[::-1]))
-    a, b = np.array([100., 0.]), np.array([0., 100.])
+    assert analyze._bootstrap_tail(keys, functions, indices) @ criticality == pytest.approx(
+        analyze._bootstrap_tail(keys, loss[:, None], indices)[:, 0])
+    assert np.array_equal(weights[::-1], analyze.tail_weights(keys[::-1]))
+    a, b = np.array([100, 0]), np.array([0, 100])
     difference, _ = analyze._tail_contrast([analyze._tail_statistic(a, a[:, None]),
                                            -analyze._tail_statistic(b, b[:, None])])
     assert difference[0] != analyze._tail_statistic(a-b, (a-b)[:, None])[0]
+
+
+def test_exact_tail_boundary_ignores_ulp_split_and_bootstraps_ties(monkeypatch):
+    base = dict(agents=[dict(id='A01', criticality=.8), dict(id='A02', criticality=.25)],
+                functions=[dict(id='F1', criticality=.8, members={'A01': 1}),
+                           dict(id='F2', criticality=.25, members={'A02': 1})],
+                fixed=dict(primary_contaminated_utility=.5, deadline_grace=4))
+    view = study.protocol()['evaluation_views']['primary']
+    raw = dict(base_deficit_hard=np.zeros((60, 2)), compromised_weight_hard=np.zeros((60, 2)))
+    raw['base_deficit_hard'][-5:] = [[10, 0], [5, 0], [0, 16], [5, 0], [0, 16]]
+    keys = analyze._exact_tail_keys(raw, base, view, 24)
+    loss, functions, criticality = analyze.evaluate(raw, base, view)
+    loss[-4:] = [np.nextafter(4., -np.inf), 4., np.nextafter(4., np.inf),
+                 np.nextafter(np.nextafter(4., np.inf), np.inf)]
+
+    def forbidden(*args, **kwargs):
+        pytest.fail('Exact tail membership must not use isclose')
+
+    monkeypatch.setattr(np, 'isclose', forbidden)
+    weights = analyze.tail_weights(keys)
+    mass = weights * 3  # 5% of N=60; one higher run leaves two slots for four ties.
+    assert np.array_equal(mass[-5:], [1., .5, .5, .5, .5])
+    assert fsum(mass) == 3
+    assert np.array_equal(weights[::-1], analyze.tail_weights(keys[::-1]))
+    assert np.ptp(loss[-4:]) > 0 and len(set(keys[-4:])) == 1
+    with pytest.raises(ValueError, match='exact integer'):
+        analyze.tail_weights(loss)
+
+    matrix = np.column_stack([loss, functions])
+    indices = analyze.bootstrap_indices(60, 41, 42)
+    indices[0] = np.r_[np.arange(55), [55, 56, 56, 57, 58]]
+    samples = analyze._bootstrap_tail(keys, matrix, indices)
+    expected = []
+    for index in indices:
+        sampled = keys[index]
+        remaining = Fraction(len(index), 20)
+        exact_weights = [Fraction(0)] * len(index)
+        for key in sorted(set(sampled), reverse=True):
+            group = np.flatnonzero(sampled == key)
+            amount = min(remaining, Fraction(len(group)))
+            for i in group:
+                exact_weights[i] = amount / len(group) / 3
+            remaining -= amount
+        assert remaining == 0 and sum(exact_weights) == 1
+        expected.append([fsum(float(weight) * value for weight, value in zip(exact_weights, column))
+                         for column in matrix[index].T])
+    assert samples == pytest.approx(np.array(expected), abs=1e-14)
+    assert samples[:, 1:] @ criticality == pytest.approx(samples[:, 0], abs=1e-14)
+    repeated = analyze._bootstrap_tail(keys, matrix, indices)
+    assert np.array_equal(samples, repeated)
+    for column in range(matrix.shape[1]):
+        assert analyze.interval(samples[:, column]) == analyze.interval(repeated[:, column])
+
+
+@pytest.mark.parametrize('grace', [1, 3, 7, 97])
+def test_exact_tail_keys_match_rational_scores_for_all_views_and_time_lattices(grace):
+    base, views = study.base_config(), study.protocol()['evaluation_views']
+    base['fixed']['deadline_grace'] = grace
+    # Exercise decimal utility and node criticality, not binary-float fractions.
+    base['fixed']['primary_contaminated_utility'] = .8
+    agents = sorted(base['agents'], key=lambda a: a['id'])
+    ids = {a['id']: i for i, a in enumerate(agents)}
+    n, horizon = 4, 12
+    rng = np.random.default_rng(82)
+    raw = {key: np.zeros((n, len(agents))) for key in VECTOR_METRICS}
+    numerators = {key: np.zeros((n, len(agents)), dtype=int) for key in VECTOR_METRICS}
+    for t in range(horizon):
+        visible = rng.integers(0, 2, (n, len(agents)))
+        compromised = rng.integers(0, 2, (n, len(agents)))
+        for mode, scale, h, numerator in (('hard', 1, float(t == 0), int(t == 0)),
+                                         ('grace', grace, max(0., 1 - t / grace), max(0, grace - t))):
+            raw['base_deficit_' + mode] += 1 - visible * h
+            raw['compromised_weight_' + mode] += visible * h * compromised
+            numerators['base_deficit_' + mode] += scale - visible * numerator
+            numerators['compromised_weight_' + mode] += visible * numerator * compromised
+    for view in views.values():
+        mode = 'hard' if view['timeliness'] == 'hard' else 'grace'
+        scale = 1 if mode == 'hard' else grace
+        q = Fraction(str(base['fixed']['primary_contaminated_utility'] if view['compromised_utility'] == 'base'
+                         else view['compromised_utility']))
+        exact = []
+        for run in range(n):
+            deficits = {a['id']: Fraction(int(numerators['base_deficit_' + mode][run, i]), scale) +
+                        (1-q) * Fraction(int(numerators['compromised_weight_' + mode][run, i]), scale)
+                        for i, a in enumerate(agents)}
+            total = Fraction(0)
+            for function in base['functions']:
+                weights = {a: Fraction(1) if view['members'] == 'equal' else Fraction(str(w)) *
+                           (Fraction(str(agents[ids[a]]['criticality'])) if view['members'] == 'agent_criticality' else 1)
+                           for a, w in function['members'].items()}
+                c = Fraction(1) if view['function_criticality'] == 'equal' else Fraction(str(function['criticality']))
+                total += c * sum(weights[a] * deficits[a] for a in weights) / sum(weights.values())
+            exact.append(total)
+        keys = analyze._exact_tail_keys(raw, base, view, horizon)
+        assert all(int(key) * exact[0] == int(keys[0]) * value for key, value in zip(keys, exact))
+
+
+@pytest.mark.parametrize('mode,grace,value', [('hard', 4, .5), ('grace', 3, .1), ('grace', 10**16, 1.)])
+def test_exact_tail_rejects_off_lattice_or_unresolvable_raw(mode, grace, value):
+    base = study.base_config()
+    base['fixed']['deadline_grace'] = grace
+    view = study.protocol()['evaluation_views']['primary' if mode == 'hard' else 'grace']
+    raw = {key: np.zeros((2, 30)) for key in VECTOR_METRICS}
+    raw['base_deficit_' + mode][0, 0] = value
+    with pytest.raises(ValueError, match='time lattice'):
+        analyze._exact_tail_keys(raw, base, view, 24)
+
+
+def test_exact_tail_keys_keep_python_integers_when_int64_would_overflow():
+    base = study.base_config()
+    base['fixed']['primary_contaminated_utility'] = .12345678901234567
+    base['functions'][0]['criticality'] = .7654321098765432
+    view = study.protocol()['evaluation_views']['primary']
+    raw = {key: np.ones((3, 30)) for key in VECTOR_METRICS}
+    keys = analyze._exact_tail_keys(raw, base, view, 24)
+    assert keys.dtype == object and all(type(key) is int and key > 2**63 for key in keys)
+    assert np.array_equal(analyze.tail_weights(keys), np.full(3, 1/3))
 
 
 def test_paired_mean_zero_percentile_endpoint_is_uncertain():
@@ -131,7 +252,7 @@ def test_paired_mean_zero_percentile_endpoint_is_uncertain():
 
 def test_cell_es95_difference_zero_upper_endpoint_is_uncertain():
     # ES95 for N=2 is max. 39 draws yield 0-100, two yield 100-100.
-    a, b = np.array([100., 0.]), np.array([0., 100.])
+    a, b = np.array([100, 0]), np.array([0, 100])
     indices = np.array([[1, 1]] * 39 + [[0, 1]] * 2)
     ta = analyze._bootstrap_tail(a, a[:, None], indices)[:, 0]
     tb = analyze._bootstrap_tail(b, b[:, None], indices)[:, 0]
@@ -535,6 +656,8 @@ def test_presentation_is_natural_unique_and_independent_of_outcomes(tmp_path):
     figures.write_report(frames, tmp_path, 8, 20, 'smoke')
     report = (tmp_path / 'report.md').read_text(encoding='utf-8')
     assert '|  / ' not in report
+    assert '相邻容量区间的改善幅度并不单调' not in report
+    assert '各有限容量区间跨度不同，表中为区间总改善量' in report
     assert all(f'| {label} |' in report for label in ('middle − early', 'late − early', 'late − middle'))
     assert report.index('主视图：') < report.index('评价敏感性：')
     assert 'RQ1 / H1a：位置增量 R²' in report and 'bootstrap_zero_SST' in report
@@ -646,7 +769,7 @@ def test_supplement_metrics_paired_bootstrap_and_function_decomposition_without_
     ids = [a['id'] for a in sorted(base['agents'], key=lambda a: a['id'])]
     criticality = np.array([f['criticality'] for f in base['functions']])
     for cell in design['cells']:
-        raw = {key: rng.uniform(0, 5, (n, 30)) for key in VECTOR_METRICS}
+        raw = {key: rng.integers(0, 6, (n, 30)).astype(float) for key in VECTOR_METRICS}
         raw.update({key: np.zeros(n) for key in SCALAR_METRICS})
         raw['run_index'] = np.arange(n)
         raws[cell['id']] = raw

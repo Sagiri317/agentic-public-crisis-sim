@@ -639,14 +639,12 @@ def write_report(frames, output, runs_per_cell, repetitions, stage):
             lines.append(f'符号变化位于预定离散网格的{caps[i-1]}与{caps[i]}之间；不插值现实临界容量。')
     improvements = -np.diff(capacity['value'])
     if np.all(improvements >= 0) and np.any(improvements > 0):
-        lines.append('容量增加总体降低当前离散网格中的净功能缺口。')
+        lines.append('容量增加总体降低当前预定离散网格中的净功能缺口。')
     elif np.all(improvements == 0):
         lines.append('当前离散网格各档净功能缺口的点估计相同。')
     else:
         lines.append('当前离散网格没有呈现净功能缺口随容量非增的单调关系。')
-    if not (np.all(np.diff(improvements) <= 0) or np.all(np.diff(improvements) >= 0)):
-        lines.append('相邻容量区间的改善幅度并不单调。')
-    lines.extend(['下表相邻变化仅为点估计描述，不附加新的显著性检验；正的下降量表示增容后L降低。unlimited是独立类别，表中变化不是连续容量的边际收益定律。', '',
+    lines.extend(['各有限容量区间跨度不同，表中为区间总改善量，不直接用于比较单位容量边际收益；unlimited 为独立机制类别。相邻变化仅作点估计描述，不附加新的显著性检验；正的下降量表示增容后L降低。', '',
         '| 容量区间 | ΔL下降量（前档−后档） |', '|---|---:|'])
     for i in range(1, len(caps)):
         lines.append(f'| {caps[i-1]} → {caps[i]} | {capacity["value"].iloc[i-1] - capacity["value"].iloc[i]:.8g} |')

@@ -1,6 +1,7 @@
 """Consume catalog estimands; derive all scores from the four raw integrals."""
 from collections import defaultdict
-from math import fsum
+from fractions import Fraction
+from math import fsum, lcm
 from pathlib import Path
 
 import numpy as np
@@ -35,16 +36,54 @@ def evaluate(raw, base, view):
     return functions @ weights, functions, weights
 
 
-def tail_weights(values):
-    values = np.asarray(values, dtype=float)
-    if values.ndim != 1 or not len(values) or not np.isfinite(values).all():
-        raise ValueError('Finite nonempty one-dimensional tail input required')
+def _exact_tail_keys(raw, base, view, horizon):
+    """Expand the score over rational configuration values and raw time lattices."""
+    agents = sorted(base['agents'], key=lambda a: a['id'])
+    alpha = {a['id']: Fraction(0) for a in agents}
+    criticality = {a['id']: Fraction(str(a['criticality'])) for a in agents}
+    for function in base['functions']:
+        weights = {name: Fraction(1) if view['members'] == 'equal' else
+                   Fraction(str(value)) * (criticality[name] if view['members'] == 'agent_criticality' else 1)
+                   for name, value in function['members'].items()}
+        c = Fraction(1) if view['function_criticality'] == 'equal' else Fraction(str(function['criticality']))
+        total = sum(weights.values())
+        for name, weight in weights.items():
+            alpha[name] += c * weight / total
+    q = Fraction(str(base['fixed']['primary_contaminated_utility'] if view['compromised_utility'] == 'base'
+                     else view['compromised_utility']))
+    coefficients = [alpha[a['id']] for a in agents] + [alpha[a['id']] * (1 - q) for a in agents]
+    denominator = lcm(*(coefficient.denominator for coefficient in coefficients))
+    integers = np.array([coefficient.numerator * (denominator // coefficient.denominator)
+                         for coefficient in coefficients], dtype=object)
+    mode = 'hard' if view['timeliness'] == 'hard' else 'grace'
+    scale = 1 if mode == 'hard' else base['fixed']['deadline_grace']
+    scaled = np.column_stack([raw['base_deficit_' + mode], raw['compromised_weight_' + mode]]) * scale
+    lattice = np.rint(scaled)
+    # Hard sums add only 0/1. Grace has at most three operations per summand,
+    # T additions and one lattice scaling: gamma_(T+4) * T*g bounds the error.
+    # This validates raw representation; it never merges nearby loss values.
+    error = 0 if mode == 'hard' else _roundoff(horizon * scale, horizon + 4)
+    if (not np.isfinite(scaled).all() or (scaled < 0).any() or (lattice >= 2**53).any()
+            or error >= .5 or (np.abs(scaled - lattice) > error).any()):
+        raise ValueError(f'Raw {mode} integrals do not resolve the theoretical 1/{scale} time lattice')
+    components = np.array([int(value) for value in lattice.flat], dtype=object).reshape(lattice.shape)
+    keys = components @ integers
+    # Compute with Python integers first; a checked cast makes repeated bootstrap
+    # sorting fast when the actual keys fit, without risking integer overflow.
+    return keys.astype(np.int64) if max(keys) <= np.iinfo(np.int64).max else keys
+
+
+def tail_weights(keys):
+    keys = np.asarray(keys)
+    if (keys.ndim != 1 or not len(keys) or
+            not (keys.dtype.kind in 'iu' or keys.dtype == object and all(type(key) is int for key in keys))):
+        raise ValueError('Nonempty one-dimensional exact integer tail keys required')
     # Express 5% as integer tail mass, avoiding the extra rounding in .05*N.
-    boundary = np.sort(values)[len(values) - (len(values) + 19) // 20]
-    above, equal = values > boundary, values == boundary
+    boundary = np.sort(keys)[len(keys) - (len(keys) + 19) // 20]
+    above, equal = keys > boundary, keys == boundary
     weights = 20. * above
-    weights[equal] = (len(values) - 20 * int(above.sum())) / int(equal.sum())
-    return weights / len(values)
+    weights[equal] = (len(keys) - 20 * int(above.sum())) / int(equal.sum())
+    return weights / len(keys)
 
 
 def bootstrap_indices(n, repetitions, seed, domain=0):
@@ -203,13 +242,13 @@ def _statistic_plan(design):
     return points, bootstrap
 
 
-def _tail_statistic(loss, matrix):
-    weights = tail_weights(loss)
+def _tail_statistic(tail_key, matrix):
+    weights = tail_weights(tail_key)
     return np.array([fsum(weights * column) for column in matrix.T])
 
 
-def _bootstrap_tail(loss, matrix, indices):
-    return np.array([_tail_statistic(loss[index], matrix[index]) for index in indices]).reshape(len(indices), matrix.shape[1])
+def _bootstrap_tail(tail_key, matrix, indices):
+    return np.array([_tail_statistic(tail_key[index], matrix[index]) for index in indices]).reshape(len(indices), matrix.shape[1])
 
 
 def _metric_unit(metric):
@@ -407,20 +446,20 @@ def analyze(raws, output, repetitions, design, base):
         cell_id = cell['id']
         for view_id, statistic in sorted(required[cell_id]):
             data = data_for(cell_id, view_id)
-            loss = data[LOSS]
             keys = sorted(required[cell_id][view_id, statistic])
             matrix = np.column_stack([data[key] for key in keys])
             if statistic == 'mean':
                 point = matrix.mean(axis=0)
             else:
-                point = _tail_statistic(loss, matrix)
+                tail_key = _exact_tail_keys(raws[cell_id], base, design['evaluation_views'][view_id], cell['parameters']['horizon'])
+                point = _tail_statistic(tail_key, matrix)
             for j, metric in enumerate(keys):
                 signature = cell_id, view_id, statistic, metric
                 moments[signature] = float(point[j])
             draw_keys = sorted(bootstrap[cell_id][view_id, statistic])
             if not draw_keys:
                 continue
-            samples = _bootstrap_tail(loss, np.column_stack([data[key] for key in draw_keys]), indices)
+            samples = _bootstrap_tail(tail_key, np.column_stack([data[key] for key in draw_keys]), indices)
             for j, metric in enumerate(draw_keys):
                 signature = cell_id, view_id, statistic, metric
                 draws[signature] = samples[:, j]
