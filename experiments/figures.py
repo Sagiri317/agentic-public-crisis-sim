@@ -448,12 +448,12 @@ def _information(frames, base, subtitle):
 def _monitoring_conclusion(frames):
     directions = dict(frames['fixed_budget'])['service_deficit']['direction']
     if directions.eq('positive').all():
-        return '固定检查次数后，较晚监测增加平均功能缺口'
+        return '较晚的 release-relative 主动检测对应更高的公共功能缺口'
     if directions.eq('negative').all():
-        return '固定检查次数后，较晚监测减少平均功能缺口'
+        return '较晚的 release-relative 主动检测对应更低的公共功能缺口'
     if directions.eq('uncertain').all():
-        return '固定检查次数后，时点差异仍不确定'
-    return '固定检查次数后，时点效果随比较而异'
+        return 'release-relative 主动检测的时点差异仍不确定'
+    return 'release-relative 主动检测的时点效果随比较而异'
 
 
 def _capacity_conclusion(frames):
@@ -476,9 +476,9 @@ def _function_effects(ax, pairs, labels):
 
 
 def _fixed_budget(frames, base, subtitle):
-    fig = _figure(5.6, _monitoring_conclusion(frames), subtitle+' · 单次主动检查 · data中心情景')
+    fig = _figure(5.6, _monitoring_conclusion(frames), subtitle+' · 检测次数受控的单次监测 · data中心情景')
     gs = fig.add_gridspec(2, 1, left=.22, right=.90, bottom=.22, top=.81, hspace=.78)
-    labels = ['middle − early', 'late − early', 'late − middle']
+    labels = dict(frames['fixed_budget'])['service_deficit']['label'].tolist()
     ax = fig.add_subplot(gs[0]); _panel(ax, 'a', '检测质量相同，比较检查时点')
     _forest(ax, dict(frames['fixed_budget'])['service_deficit'], labels)
     ax.set_xlabel('均值 ΔL（功能关键性 × 抽象 tick）')
@@ -488,9 +488,9 @@ def _fixed_budget(frames, base, subtitle):
     cb.set_label('ΔL_f（抽象 tick）', fontsize=7)
     counts = ', '.join(f'{name}: {row.monitoring_requests:g}' for name, row in
                        zip(('early', 'middle', 'late'), frames['monitoring_levels'].itertuples()))
-    _note(fig, '合成情景；时点分别为 release+1、+3、+5；每节点至多一次，超出窗口不补查。\n'
+    _note(fig, '合成情景；early=release+1，middle=release+3，late=release+5；每节点最多一次。\n'
           f'实际每 run 平均检查请求数：{counts}。O0/O1/O2 持续监测另见图5。\n'
-          '功能分量使用归一化服务缺口；总 L 使用功能关键性权重。', ci=True)
+          '时点相对任务 release，超出窗口不补查；功能分量归一化，总 L 使用功能关键性权重。', ci=True)
     return fig
 
 
@@ -516,7 +516,8 @@ def _capacity(frames, base, subtitle):
         ax.set_xticks(xx, labels, rotation=35, ha='right'); ax.set_ylabel(unit); ax.set_ylim(bottom=0)
     _note(fig, '合成情景、抽象 tick；full/all/life_safety，deadline=5，service_time=3；其他条件与 autonomy 相同。\n'
           '各横轴按预定离散档位等距展示；连线不估计连续临界点。unlimited 仅取消容量排队，仍有服务时长。\n'
-          'c、d 为均值水平、无 CI；监督拥塞是模型机制，不是现实经验定律。以下符号说明适用于 a、b。', ci=True)
+          '总 L 改善不保证所有功能改善；有限容量与 unlimited 须分别解释。最终完成审核不等于及时完成。\n'
+          'c、d 为均值水平、无 CI；监督拥塞是合成模型机制。以下符号说明适用于 a、b。', ci=True)
     return fig
 
 
@@ -543,7 +544,7 @@ def render(frames, output, stage, base):
                     _position: '位置与同规模公共功能损失', _dependency: '共同依赖：均值与尾部的预先规定比较',
                     _isolation: '观察阶段与隔离：效果及治理负担', _review: '审核与指挥：处理能力和时限',
                     _triage: '任务分诊：总量与功能分解', _information: '信息政策：直接效果与期限交互',
-                    _fixed_budget: '固定预算监测：三个时点的配对比较', _capacity: '审核容量：配对效果与监督拥塞诊断',
+                    _fixed_budget: 'release-relative 单次监测：三个时点的配对比较', _capacity: '审核容量：配对效果与监督拥塞诊断',
                 }[renderer])
             fig.savefig(output / (name+'.png'), dpi=300)
             plt.close(fig)
@@ -564,14 +565,16 @@ def write_report(frames, output, runs_per_cell, repetitions, stage):
         '限制：一次响应任务、单一业务拓扑、简化补充检查、健康指挥零误拒绝、线性服务映射。',
         '主结果的效应、零结果、反向和不确定均保留；未依据结果调整参数、随机种子或切片。', '',
     ]
-    lines.extend([_monitoring_conclusion(frames) + '；' + _capacity_conclusion(frames) + '。',
+    equal_checks = frames['monitoring_levels']['monitoring_requests'].nunique() == 1
+    context = '在该合成情景及相同一次检测预算下，' if equal_checks else '在该合成情景中，'
+    lines.extend([context + _monitoring_conclusion(frames) + '；' + _capacity_conclusion(frames) + '。',
         '这两项补充仍分别属于RQ2与RQ3；其结果不升级为新增研究问题或替换原有主比较。', ''])
 
     def ci_text(row):
         return f'[{row.ci_low:.8g}, {row.ci_high:.8g}]' if np.isfinite([row.ci_low, row.ci_high]).all() else 'undefined'
 
     for main in (True, False):
-        lines.extend(['## ' + ('主视图：注册主量及七项功能' if main else '评价敏感性：同一轨迹重算'), '',
+        lines.extend(['## ' + ('主视图：预先规定主量及七项功能' if main else '评价敏感性：同一轨迹重算'), '',
             '| 主量 | 统计量 | 评分视图 | 指标 / 单位 | 数值 | 95% CI | direction | 点状态 | 区间状态 | 追溯 ID |',
             '|---|---|---|---|---:|---|---|---|---|---|'])
         for r in frames['position'][frames['position']['view'].eq('primary') == main].itertuples():
@@ -602,25 +605,28 @@ def write_report(frames, output, runs_per_cell, repetitions, stage):
         lines.append('')
 
     settings = frames['settings']
-    lines.extend(['## RQ2补充：检测次数受控时的监测时点', '',
+    lines.extend(['## RQ2补充：检测次数受控的 release-relative 单次监测', '',
         '原O0/O1/O2比较的是前移持续监测窗口的整体政策效果，前移还改变累计检查及误报机会，不能单独识别等预算的纯时点作用。',
         f'本补充固定中心data同期冲击、自动隔离开启；检测概率={settings["detection_probability"]:g}、误报率={settings["false_alarm_probability"]:g}，三组相同。',
-        'early、middle、late分别在节点release+1、+3、+5主动检查一次，不要求先形成方案或完成行动。超出horizon不补查、不移至窗口末。',
+        'early = release+1，middle = release+3，late = release+5；每节点最多一次检查。treatment是相对任务release的检测时点，不以方案形成或行动完成为门槛，也不保证发生在行动之前。超出horizon不补查、不移至窗口末。',
         '三组使用同一节点、同一run的潜在一次检测/误报随机数。状态随检查时点变化，因此共享随机数不意味着真检测数相同。',
         '预先规定middle−early、late−early、late−middle；均值ΔL为本补充的主要输出，ES95及功能尾部贡献为次级。单位均为抽象tick下的合成服务缺口。', '',
         '三组水平（condition为release后的tick数；计数为每run均值；level不计算CI）：', ''])
     level_table(frames['monitoring_levels'], ['service_deficit', 'worst_function_deficit', 'monitoring_requests',
         'true_detections', 'false_isolations', 'ever_compromised_count', 'wrong_actions'])
+    if equal_checks:
+        lines.extend([f'当前{stage.capitalize()}情景三组实际检查次数相同：每run均为{frames["monitoring_levels"]["monitoring_requests"].iloc[0]:g}次。', ''])
     lines.extend(['均值差：正值表示对应缺口或计数增加；七项功能缺口乘其主关键性权重后重建ΔL。', ''])
     effect_table(frames['fixed_budget'])
     lines.extend(['次级ES95：各分布尾部均值之差；功能项使用各cell总L同一尾部，不是各功能自己的ES95。', ''])
     effect_table(frames['fixed_budget_tail'])
-    lines.extend(['![固定预算监测](figures/09_fixed_budget_monitoring.png)', '',
-        '允许解释为本固定检测预算下的时点效应；不能等同于持续监测政策，更不是现实检测或隔离政策的因果估计。', '',
+    lines.extend(['![检测次数受控的 release-relative 单次监测](figures/09_fixed_budget_monitoring.png)', '',
+        '该比较仅识别本合成情景中相对任务release的检测时点差异，不能解释为现实提前预警实验或现实政策因果效果。', '',
         '## RQ3补充：审核容量与监督拥塞', '',
         f'固定A04、无资源冲击、full/all/life_safety、deadline_window=5、review_service_time=3，审核灵敏度={settings["review_sensitivity"]:g}、特异度={settings["review_specificity"]:g}；其他条件取中心值，指挥为distributed。',
-        '全部容量使用同一外生情景的autonomy参照和run-index配对；共享参照只保留一个物理配置。unlimited仅消除容量排队，仍需完整服务时长。',
-        '“监督拥塞”指响应窗口内监督需求超过处理能力，审核可能减少错误行动，却通过排队和延期造成新的公共功能损失。这是模型提出的机制性概念，尚未经现实经验验证。', ''])
+        '全部容量使用同一外生情景的autonomy参照和run-index配对；共享参照只保留一个物理配置。unlimited仅消除容量排队，仍需完整服务时长；它与任何有限容量均有不同的机制含义。',
+        '监督拥塞（oversight congestion）是指：在有限危机响应窗口和任务期限约束下，监督任务的到达结构与服务需求超过其及时处理能力，使原本用于纠错的监督机制通过排队、延期和错失时限产生额外公共功能损失。',
+        '这是合成模型中的机制概念，尚不是现实经验定律。最终完成审核不等于及时完成；须结合deadline miss和功能缺口判断，不能仅以完成数认定能力充足。', ''])
     capacity = dict(frames['oversight_capacity'])['service_deficit']
     caps = frames['capacity_levels']['condition'].astype(str).tolist()
     for sign, title in (('positive', '净损害（CI全正）'), ('negative', '净收益（CI全负）'), ('uncertain', '净效果不确定（CI含0）')):
@@ -628,9 +634,19 @@ def write_report(frames, output, runs_per_cell, repetitions, stage):
         lines.append(f'{title}的离散容量：' + ('、'.join(labels) if labels else '未出现') + '。')
     if not capacity['direction'].isin(['positive', 'negative', 'uncertain']).all():
         lines.append('另有未定义或结构性零结果，按表中状态保留，不补值。')
-    monotone = np.all(np.diff(capacity['value']) <= 0)
-    lines.extend(['该网格的ΔL点估计' + ('随容量非增' if monotone else '没有呈现随容量非增的单调关系') + '；这不是连续容量定律。',
-        '下表相邻变化仅为点估计描述，不附加新的显著性检验；正的下降量表示增容后L降低。用于检查过载、过渡和边际收益减弱，不强行命名临界点。', '',
+    for i in range(1, len(caps)):
+        if set(capacity['direction'].iloc[i-1:i+1]) == {'positive', 'negative'}:
+            lines.append(f'符号变化位于预定离散网格的{caps[i-1]}与{caps[i]}之间；不插值现实临界容量。')
+    improvements = -np.diff(capacity['value'])
+    if np.all(improvements >= 0) and np.any(improvements > 0):
+        lines.append('容量增加总体降低当前离散网格中的净功能缺口。')
+    elif np.all(improvements == 0):
+        lines.append('当前离散网格各档净功能缺口的点估计相同。')
+    else:
+        lines.append('当前离散网格没有呈现净功能缺口随容量非增的单调关系。')
+    if not (np.all(np.diff(improvements) <= 0) or np.all(np.diff(improvements) >= 0)):
+        lines.append('相邻容量区间的改善幅度并不单调。')
+    lines.extend(['下表相邻变化仅为点估计描述，不附加新的显著性检验；正的下降量表示增容后L降低。unlimited是独立类别，表中变化不是连续容量的边际收益定律。', '',
         '| 容量区间 | ΔL下降量（前档−后档） |', '|---|---:|'])
     for i in range(1, len(caps)):
         lines.append(f'| {caps[i-1]} → {caps[i]} | {capacity["value"].iloc[i-1] - capacity["value"].iloc[i]:.8g} |')
@@ -642,12 +658,20 @@ def write_report(frames, output, runs_per_cell, repetitions, stage):
     level_table(levels, ['information_blocking', 'review_blocking', 'denial_blocking', 'command_blocking', 'isolation_blocking'])
     lines.extend(['全部human−autonomy差及七功能方向：', ''])
     effect_table(frames['oversight_capacity'])
+    for cap, row in zip(caps, capacity.itertuples()):
+        if row.direction == 'negative':
+            worsened = [metric for metric, frame in frames['oversight_capacity']
+                        if metric in {f'F{i}' for i in range(1, 8)} and
+                        frame.loc[frame['catalog_id'].eq(row.catalog_id), 'direction'].eq('positive').any()]
+            if worsened:
+                lines.append(f'总公共功能缺口改善并不意味着所有公共功能均改善。capacity={cap}的总L差CI全负，但{"/".join(worsened)}的缺口差CI全正；不能据此称为帕累托改进或审核能力完全充足。')
     lines.extend(['![审核容量曲线](figures/10_oversight_capacity.png)', '',
         '如出现净损害与净收益，仅在已计算的离散容量间定位变化；CI含0的容量保留不确定，不插值推断现实编制或精确阈值。人工监督既非必然有益，也非必然有害。', '',
-        '## 非补偿性风险与完整功能向量', '',
+        '## 非补偿性跨功能稳健性指标与完整功能向量', '',
         '`worst_function_deficit`先在每run取max(F1,…,F7)，再求均值及配对差，单位为归一化服务缺口×抽象tick。它不乘功能关键性，也不等于max(E[F1],…,E[F7])。',
+        '该worst-function diagnostic只减少不同公共功能之间的补偿，不消除每个F内部的线性加权假设。',
         '该次级结果来自与L相同的raw积分，未增加模拟或改变评分；不能替换主L。fixed-budget与capacity的该指标及功能方向已列于上表。',
-        '以下保留所有规定的共同依赖/partition及分诊对比；表格单元格为点估计 [95% CI]。F1–F7为功能缺口差，最后一列为最大单项缺口差。',
+        '以下保留所有规定的共同依赖/partition及分诊对比；表格单元格为点估计 [95% CI]。F1–F7为功能缺口差，最后一列为worst-function diagnostic的配对差。',
         'life_safety的总L改善只表示预定价值权重下的改善；须同时看F1/F2等基础信息和非生命安全功能是否被挤压，不能称为普遍最优治理。', ''])
     for purpose, pairs in frames['function_vectors'].items():
         lines.extend(['### ' + ('共同依赖及partition' if purpose == 'dependency' else 'life_safety / due_first 相对FIFO'), '',
@@ -657,6 +681,6 @@ def write_report(frames, output, runs_per_cell, repetitions, stage):
             entries = [f'{frame.iloc[i]["value"]:.8g} {ci_text(frame.iloc[i])}' for _, frame in pairs]
             lines.append('| ' + label.replace('\n', ' / ') + ' | ' + ' | '.join(entries) + ' |')
         lines.append('')
-    lines.extend(['本研究未验证4R/TIL等课程框架；位置ΔR²是合成场景中的预测增量，不是现实因果效应。',
-        '复现信息和产物哈希见run-info.json；报告数值来自三张CSV，同一生成路径适用于Smoke、Pilot和Formal。', ''])
+    lines.extend(['本研究未验证4R/TIL等分析框架；位置ΔR²是合成场景中的预测增量，不是现实因果效应。',
+        '报告数值来自tables/中的三张CSV，同一生成路径适用于Smoke、Pilot和Formal。', ''])
     (output / 'report.md').write_text('\n'.join(lines) + '\n', encoding='utf-8', newline='\n')

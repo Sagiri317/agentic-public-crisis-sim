@@ -359,8 +359,6 @@ def test_ci_display_preserves_points_and_interval_states(value, low, high, statu
 def test_cli_stage_sampling_without_running_simulations(stage, runs, seed, repetitions, monkeypatch, tmp_path):
     calls = []
     monkeypatch.setattr(run_all, 'ROOT', tmp_path)
-    monkeypatch.setattr(run_all, 'source_hashes', lambda: {})
-    monkeypatch.setattr(run_all.subprocess, 'check_output', lambda *args, **kwargs: 'test-head')
     monkeypatch.setattr(study, 'build_catalog', lambda spec, base: dict(cells=[]))
     monkeypatch.setattr(study, 'execute', lambda output, n, master, workers, models: calls.append((n, master)))
     monkeypatch.setattr(analyze, 'analyze', lambda raws, output, b, design, base: calls.append(b))
@@ -487,7 +485,6 @@ def test_presentation_is_natural_unique_and_independent_of_outcomes(tmp_path):
                       count=[20, 20, 20, 20], initial_node=['A01', 'A02', 'A01', 'A03'], mean=[1., 2., 3., 4.])))
     frames = analyze._presentation(tables, design, base, spec)
     assert [len(frame) for frame in frames['dependency']] == [5, 5]
-    assert frames['command_blocking'].attrs['unit'] == 'Agent-tick 差'
     assert frames['human']['label'].tolist() == [f'd={d},cap={cap}\nfull − autonomy' for d in (2, 5, 10) for cap in (1, 3, 'unlimited')]
     assert frames['command']['label'].tolist() == [f'd={d}\n{command} − distributed' for d in (2, 5, 10) for command in ('selective', 'centralized')]
     assert frames['isolation'][0]['label'].tolist() == [f'profile={profile},O={o}\nTrue − False' for profile in ('abrupt', 'progressive') for o in (0, 1, 2)]
@@ -512,7 +509,7 @@ def test_presentation_is_natural_unique_and_independent_of_outcomes(tmp_path):
             pd.testing.assert_frame_equal(left[['estimand_id', 'label']], right[['estimand_id', 'label']])
     assert frames['monitoring_levels']['condition'].tolist() == [1, 3, 5]
     assert frames['capacity_levels']['condition'].tolist() == [1, 2, 3, 4, 6, 10, 'unlimited']
-    assert dict(frames['fixed_budget'])[analyze.LOSS]['label'].tolist() == ['\n3 − 1', '\n5 − 1', '\n5 − 3']
+    assert dict(frames['fixed_budget'])[analyze.LOSS]['label'].tolist() == ['middle − early', 'late − early', 'late − middle']
     for key, axis in (('triage_lines', 'deadline'), ('triage_functions', 'label')):
         for (left_id, left), (right_id, right) in zip(frames[key], alternate[key]):
             assert left_id == right_id
@@ -537,6 +534,8 @@ def test_presentation_is_natural_unique_and_independent_of_outcomes(tmp_path):
         'RQ3 / H3b：生命安全分诊与 FIFO', 'RQ3 / H3c：附加指挥复核时限交互', 'RQ3 / H3d：信息等待时限交互']
     figures.write_report(frames, tmp_path, 8, 20, 'smoke')
     report = (tmp_path / 'report.md').read_text(encoding='utf-8')
+    assert '|  / ' not in report
+    assert all(f'| {label} |' in report for label in ('middle − early', 'late − early', 'late − middle'))
     assert report.index('主视图：') < report.index('评价敏感性：')
     assert 'RQ1 / H1a：位置增量 R²' in report and 'bootstrap_zero_SST' in report
     assert '| defined | undefined (19/20;' in report and '| undefined | undefined (0/20;' in report
@@ -551,6 +550,22 @@ def test_presentation_is_natural_unique_and_independent_of_outcomes(tmp_path):
         for key in ('fixed_budget', 'fixed_budget_tail', 'oversight_capacity'):
             for _, rows in frames[key]:
                 assert all(identity[:12] in report for identity in rows['estimand_id'])
+    capacity = dict(frames['oversight_capacity'])
+    net = capacity[analyze.LOSS]
+    cell = net.iloc[2]['catalog_id']
+    columns = ['value', 'ci_low', 'ci_high', 'direction']
+    warning = '总公共功能缺口改善并不意味着所有公共功能均改善。capacity=3'
+    for total, function, expected in (
+            ([-2., -3., -1., 'negative'], [2., 1., 3., 'positive'], True),
+            ([-2., -3., -1., 'negative'], [1., -1., 2., 'uncertain'], False),
+            ([2., 1., 3., 'positive'], [2., 1., 3., 'positive'], False)):
+        net.loc[net['catalog_id'].eq(cell), columns] = total
+        capacity['F5'].loc[capacity['F5']['catalog_id'].eq(cell), columns] = function
+        figures.write_report(frames, tmp_path, 8, 20, 'formal')
+        report = (tmp_path / 'report.md').read_text(encoding='utf-8')
+        assert (warning in report) == expected
+        if expected:
+            assert '但F5的缺口差CI全正' in report
 
 
 def test_verification_quality_registers_only_quality_slices():

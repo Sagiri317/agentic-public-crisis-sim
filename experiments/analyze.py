@@ -212,7 +212,7 @@ def _bootstrap_tail(loss, matrix, indices):
     return np.array([_tail_statistic(loss[index], matrix[index]) for index in indices]).reshape(len(indices), matrix.shape[1])
 
 
-def _metric_unit(metric, difference=True):
+def _metric_unit(metric):
     if metric.startswith('F') and metric[1:].isdigit() or metric == 'worst_function_deficit':
         return '归一化服务缺口 × 抽象tick'
     if metric == LOSS or metric == 'function_failure_time':
@@ -221,7 +221,7 @@ def _metric_unit(metric, difference=True):
             '覆盖比例' if metric.startswith('mean_') else
             '分层权重 × Agent-tick' if metric == 'critical_review_queue_time' else
             '节点数' if metric == 'ever_compromised_count' else '次数')
-    return unit + ((' 差' if 'tick' in unit else '差') if difference else '')
+    return unit + (' 差' if 'tick' in unit else '差')
 
 
 def _selected_rows(effects, design, *, purpose, statistic='mean', metric=LOSS, view='primary', **dims):
@@ -237,6 +237,8 @@ def _selected_rows(effects, design, *, purpose, statistic='mean', metric=LOSS, v
              'monitoring_offset': 'offset',
              'oversight': 'review', 'deadline_window': 'd', 'review_capacity': 'cap',
              'review_priority': 'priority', 'information_policy': 'information', 'command_structure': 'command'}
+    monitoring_names = dict(zip(sorted({r['axes']['monitoring_offset'] for r in design['roles']
+                                       if r['family'] == 'fixed_budget'}), ('early', 'middle', 'late')))
 
     def order(value):
         if value == 'unlimited':
@@ -267,13 +269,16 @@ def _selected_rows(effects, design, *, purpose, statistic='mean', metric=LOSS, v
                 field = next((k for k in ('monitoring_offset', 'information_policy', 'command_structure', 'oversight', 'review_priority', 'automatic_isolation')
                               if target.get(k) != reference.get(k)), None)
                 if field:
-                    comparison = f'{target[field]} − {reference[field]}'
+                    if field == 'monitoring_offset':
+                        comparison = f'{monitoring_names[target[field]]} − {monitoring_names[reference[field]]}'
+                    else:
+                        comparison = f'{target[field]} − {reference[field]}'
                     comparison_order = (order(target[field]), order(reference[field]))
             if not all(dimensions.get(k) == v for k, v in dims.items()):
                 continue
             label = ','.join(f'{title}={dimensions[k]}' for k, title in short.items() if k in dimensions and k != field)
             key = tuple(order(dimensions[k]) if k in dimensions else (-1, 0) for k in short) + comparison_order
-            matches.append((key, label + '\n' + comparison))
+            matches.append((key, '\n'.join(part for part in (label, comparison) if part)))
         if matches:
             key, label = min(matches)
             selected.append((key, label, estimand['id']))
@@ -283,7 +288,6 @@ def _selected_rows(effects, design, *, purpose, statistic='mean', metric=LOSS, v
         raise ValueError('Presentation labels must be unique')
     frame = effects.set_index('estimand_id').loc[[identity for _, _, identity in selected]].reset_index()
     frame['label'] = labels
-    frame.attrs['unit'] = _metric_unit(metric)
     return frame
 
 
@@ -322,13 +326,11 @@ def _presentation(tables, design, base, spec):
             frame = pd.DataFrame({'deadline': [r['axes']['deadline_window'] for r in roles],
                                   **{metric: [levels.loc[(r['cell_id'], metric), 'value'] for r in roles]
                                      for metric in (LOSS, 'critical_review_queue_time')}})
-            frame.attrs['units'] = {metric: _metric_unit(metric, difference=False) for metric in (LOSS, 'critical_review_queue_time')}
             lines.append((f'cap={capacity}, {priority}', frame))
     functions = []
     for function in base['functions']:
         frame = pd.DataFrame(dict(value=[levels.loc[(r['cell_id'], function['id']), 'value'] for r in triage],
             label=[f'cap={r["axes"]["review_capacity"]},d={r["axes"]["deadline_window"]}\n{r["axes"]["review_priority"]}' for r in triage]))
-        frame.attrs['unit'] = _metric_unit(function['id'], difference=False)
         functions.append((function['id'] + ' ' + function['name'], frame))
     contrasts = {c['id']: c for c in design['contrasts']}
     primary_names = {
