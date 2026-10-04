@@ -1,11 +1,19 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77.0.3"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "agentic-public-crisis-sim"
 version = "0.1.0"
 description = "Synthetic public-function cascade and oversight stress tests"
+authors = [
+    {name = "Fengjun Wu"},
+    {name = "Yunze Zhang"},
+    {name = "Ziruo Jia"},
+    {name = "Zhixiong Wang"},
+]
+license = "MIT"
+license-files = ["LICENSE", "LICENSE-DOCS"]
 requires-python = ">=3.12,<3.13"
 dependencies = ["numpy", "pandas", "matplotlib", "pyyaml"]
 

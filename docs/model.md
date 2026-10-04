@@ -398,16 +398,16 @@ $$A_i^{m}(q)=B_i^{m}+(1-q)C_i^{m}.$$
 
 - [C1] 彭宗超：《中国危机形态分析》，《公共危机管理》第1讲，2026年秋，第14页。核对了所提供讲义相应正文。
 - [C2] 彭宗超：《公共危机与危机善治》，《公共危机管理》第2讲，2026年秋，第7—8、14—15、18—21页。核对了所提供讲义正文与相应页面。
-- [C3] 国务院灾害调查组：《河南郑州“7·20”特大暴雨灾害调查报告》，2022年1月，印刷页8—10、12—14。核对了所提供原报告相关段落；仅作机制情景依据。
-- [R1] Boin, A., 't Hart, P., Stern, E., & Sundelius, B. (2016). *The Politics of Crisis Management: Public Leadership under Pressure* (2nd ed.). Cambridge University Press. 本轮核对出版社目录与章节范围，不声称新读全书。
-- [R2] 张海波、童星（2022）：《中国应急管理效能的生成机制》，《中国社会科学》第4期。本轮核对中国社会科学网作者署名摘要；“目标—结构—过程”用于框架，不引用未取得全文的具体分析细节。
+- [C3] 国务院灾害调查组：《河南郑州“7·20”特大暴雨灾害调查报告》，2022年1月，印刷页8—10、12—14。[官方发布页](https://www.mem.gov.cn/xw/bndt/202201/t20220121_407106.shtml)。核对了所提供原报告相关段落；仅作机制情景依据。
+- [R1] Boin, A., 't Hart, P., Stern, E., & Sundelius, B. (2016). *The Politics of Crisis Management: Public Leadership under Pressure* (2nd ed.). Cambridge University Press. DOI: [10.1017/9781316339756](https://doi.org/10.1017/9781316339756). 本轮核对出版社目录与章节范围，不声称新读全书。
+- [R2] 张海波、童星（2022）：《中国应急管理效能的生成机制》，《中国社会科学》第4期。[中国社会科学网摘要](https://www.cssn.cn/dkzgxp/zgxp_zgshkx/2022nd4q/202208/t20220822_5474654.shtml)。本轮核对中国社会科学网作者署名摘要；“目标—结构—过程”用于框架，不引用未取得全文的具体分析细节。
 - [R3] Comfort, L. K., Ko, K., & Zagorecki, A. (2004). Coordination in rapidly evolving disaster response systems: The role of information. *American Behavioral Scientist, 48*(3), 295–313. DOI: 10.1177/0002764204268987. 核对期刊摘要与书目信息。
 - [R4] Lu, X., & Xue, L. (2016). Managing the unexpected: Sense-making in the Chinese emergency management system. *Public Administration, 94*(2), 414–429. DOI: 10.1111/padm.12261. 核对期刊摘要与书目信息。
 - [R5] Moynihan, D. P. (2008). Combining structural forms in the search for policy tools: Incident command systems in U.S. crisis management. *Governance, 21*(2), 205–229. DOI: 10.1111/j.1468-0491.2008.00395.x. 核对期刊摘要与理论适用边界。
 - [R6] Li, J., Tang, S.-Y., & Wen, B. (2026). Unpacking resilience in public administration: Insights from a meta-narrative review. *Public Administration Review, 86*(5), 1235–1254. DOI: 10.1111/puar.70083. 核对公开摘要、维持韧性段落和卷期，不将其概念关系当成模型参数估计。
 - [R7] Langer, M., Baum, K., & Schlicker, N. (2025). Effective human oversight of AI-based systems: A signal detection perspective on the detection of inaccurate and unfair outputs. *Minds and Machines, 35*, Article 1. DOI: 10.1007/s11023-024-09701-0. 正式卷期年2025，在线发表年2024。
 - [R8] Margherita, A., & Comes, T. (2026). Artificial intelligence as a coordination mechanism in crisis management: An integrative framework and applicative examples. *Journal of Contingencies and Crisis Management, 34*(2), e70170. DOI: 10.1111/1468-5973.70170. 核对摘要、作者与资料可得性声明；该文为理论框架和示例，不提供本模型的校准数据。
-- [R9] Andriushchenko, M., et al. (2025). AgentHarm: A benchmark for measuring harmfulness of LLM agents. *ICLR 2025*. 核对会议官方摘要；实验对象与公共部门情境不同。
+- [R9] Andriushchenko, M., et al. (2025). AgentHarm: A benchmark for measuring harmfulness of LLM agents. *ICLR 2025*. [会议官方页面](https://proceedings.iclr.cc/paper_files/paper/2025/hash/c493d23af93118975cdbc32cbe7323f5-Abstract-Conference.html)。核对会议官方摘要；实验对象与公共部门情境不同。
 - [R10] Sargent, R. G. (2013). Verification and validation of simulation models. *Journal of Simulation, 7*(1), 12–24. DOI: 10.1057/jos.2012.20. 核对期刊摘要与书目信息，不采用网页迁移时间作为论文年份。
 - [R11] Grimm, V., et al. (2020). The ODD protocol for describing agent-based and other simulation models: A second update to improve clarity, replication, and structural realism. *Journal of Artificial Societies and Social Simulation, 23*(2), 7. DOI: 10.18564/jasss.4259. 阅读公开网页正文中目的、状态、调度、设计依据与模型评价要求。
 
